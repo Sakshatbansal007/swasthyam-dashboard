@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
+import { Activity, ArrowLeft, CheckCircle2, Calendar } from 'lucide-react';
 
 export default function LogDeployment() {
   const [category, setCategory] = useState('sensor'); 
@@ -91,19 +92,13 @@ export default function LogDeployment() {
       if (existingDoc) {
         finalDoctorId = existingDoc.id;
       } else {
-        const { data: newDoc, error: docError } = await supabase
-          .from('doctors')
-          .insert([{ name: doctorName }])
-          .select()
-          .single();
-          
+        const { data: newDoc, error: docError } = await supabase.from('doctors').insert([{ name: doctorName }]).select().single();
         if (docError) return setStatusMessage('Error saving new doctor.');
         finalDoctorId = newDoc.id;
         setDoctors([...doctors, newDoc]); 
       }
       
       const totalMgBought = productObj.total_dose * qty;
-      // UPDATED MATH: using parseFloat to keep decimals intact
       daysToAdd = Math.floor((totalMgBought / parseFloat(weeklyDose)) * 7);
     } else {
       daysToAdd = productObj.lifespan_days * qty;
@@ -122,30 +117,18 @@ export default function LogDeployment() {
         await supabase.from('patients').update({ phone: patientPhone, email: patientEmail }).eq('id', patientId);
       }
     } else {
-      const { data: newPatient, error: patientError } = await supabase
-        .from('patients')
-        .insert([{ name: patientName, phone: patientPhone, email: patientEmail }])
-        .select()
-        .single();
-      
+      const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail }]).select().single();
       if (patientError) return setStatusMessage('Error saving patient.');
       patientId = newPatient.id;
       setExistingPatients([...existingPatients, newPatient]);
     }
 
     let tableToUse = category === 'sensor' ? 'sensor_deployments' : category === 'injection' ? 'injection_deployments' : 'medtronic_deployments';
-    let insertData: any = {
-      patient_id: patientId,
-      deployment_date: deploymentDate,
-      due_date: dueDate,
-      quantity: qty,
-      is_completed: false
-    };
+    let insertData: any = { patient_id: patientId, deployment_date: deploymentDate, due_date: dueDate, quantity: qty, is_completed: false };
 
     if (category === 'sensor') insertData.sensor_id = selectedProduct;
     if (category === 'injection') {
       insertData.injection_id = selectedProduct;
-      // UPDATED PAYLOAD: Saving the decimal exactly as typed
       insertData.weekly_dose = parseFloat(weeklyDose);
       insertData.doctor_id = finalDoctorId;
     }
@@ -156,77 +139,103 @@ export default function LogDeployment() {
     if (error) {
       setStatusMessage('Error: ' + error.message);
     } else {
-      setStatusMessage(`Success! Next replacement due: ${dueDate}`);
+      setStatusMessage(`Perfect! Success: New deployment recorded successfully.`);
       setPatientName(''); setPatientPhone(''); setPatientEmail(''); setWeeklyDose(''); setQuantity('1'); setDoctorName('');
     }
   };
 
   return (
-    <main className="p-10 bg-gray-50 min-h-screen">
-      <Link href="/" className="text-blue-600 hover:underline mb-6 inline-block font-semibold">&larr; Back to Dashboard</Link>
-      <h1 className="text-3xl font-bold text-blue-900 mb-8">Log New Deployment</h1>
-      
-      <div className="bg-white p-6 rounded-lg shadow-md max-w-md">
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className="mb-6 block w-full border rounded-md p-2 bg-blue-50 font-bold text-blue-900">
-          <option value="sensor">Sensor</option>
-          <option value="injection">Injection</option>
-          <option value="medtronic">Medtronic Pump</option>
-        </select>
+    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans flex flex-col items-center">
+      <div className="w-full max-w-3xl">
+        <header className="mb-8 flex justify-between items-center w-full">
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-5 h-5" /></div>
+            <span className="font-bold text-gray-900 text-lg tracking-tight">Healthcare Dashboard</span>
+          </div>
+          <Link href="/" className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          </Link>
+        </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="mb-8 w-full">
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Log New Deployment</h1>
+          <p className="text-gray-500 text-sm font-medium">Record medical device usage, referring physician and patient details.</p>
+        </div>
+        
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full">
           
-          <div>
-            <input 
-              list="patient-list" 
-              type="text" 
-              required 
-              placeholder="Patient Name" 
-              value={patientName} 
-              onChange={handlePatientNameChange} 
-              className="w-full border rounded p-2 text-black" 
-            />
-            <datalist id="patient-list">
-              {existingPatients.map(p => <option key={p.id} value={p.name} />)}
-            </datalist>
+          {/* Segmented Control */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-700 mb-2">Deployment Category</label>
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button type="button" onClick={() => setCategory('sensor')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'sensor' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Sensor Deployment</button>
+              <button type="button" onClick={() => setCategory('injection')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'injection' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Injection</button>
+              <button type="button" onClick={() => setCategory('medtronic')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'medtronic' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Medtronic Pump</button>
+            </div>
           </div>
 
-          <input type="text" required placeholder="Patient Phone" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border rounded p-2 text-black" />
-          <input type="email" placeholder="Patient Email (Optional)" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border rounded p-2 text-black" />
-          
-          {category === 'injection' && (
-            <div>
-              <input 
-                list="doctor-list" 
-                type="text" 
-                required 
-                placeholder="Referring Doctor Name" 
-                value={doctorName} 
-                onChange={(e) => setDoctorName(e.target.value)} 
-                className="w-full border rounded p-2 text-black bg-purple-50" 
-              />
-              <datalist id="doctor-list">
-                {doctors.map(d => <option key={d.id} value={d.name} />)}
-              </datalist>
+          {statusMessage && (
+            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 text-sm font-bold ${statusMessage.includes('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+              <CheckCircle2 className="w-5 h-5"/> {statusMessage}
             </div>
           )}
 
-          <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border rounded p-2 text-black">
-            <option value="" disabled>Select {category}...</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-sm">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-700 text-xs">Patient Name</label>
+              <input list="patient-list" required placeholder="e.g. Eleanor Vance" value={patientName} onChange={handlePatientNameChange} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
+            </div>
 
-          <div className="flex gap-4">
-            <input type="number" min="1" required placeholder="Qty" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-1/2 border rounded p-2 text-black" />
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-700 text-xs">Patient Phone</label>
+              <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-700 text-xs">Patient Email <span className="text-gray-400 font-normal">(Optional)</span></label>
+              <input type="email" placeholder="patient@example.com" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+            </div>
+            
             {category === 'injection' && (
-              <input type="number" step="any" required placeholder="Weekly Dose (e.g. 1.5)" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="w-1/2 border bg-yellow-50 rounded p-2 text-black" />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-gray-700 text-xs">Referring Doctor</label>
+                <input list="doctor-list" required placeholder="Dr. Sarah Jenkins" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+                <datalist id="doctor-list">{doctors.map(d => <option key={d.id} value={d.name} />)}</datalist>
+              </div>
             )}
-          </div>
 
-          <input type="date" required value={deploymentDate} onChange={(e) => setDeploymentDate(e.target.value)} className="border rounded p-2 text-black" />
-          
-          <button type="submit" className="bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors">Save Deployment</button>
-          {statusMessage && <p className="text-sm font-bold text-blue-600 mt-2">{statusMessage}</p>}
-        </form>
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-700 text-xs">Product Dropdown</label>
+              <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white">
+                <option value="" disabled>Select a {category} product...</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex flex-col gap-1.5 w-1/2">
+                <label className="font-semibold text-gray-700 text-xs">Quantity Assigned</label>
+                <input type="number" min="1" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              </div>
+              {category === 'injection' && (
+                <div className="flex flex-col gap-1.5 w-1/2">
+                  <label className="font-semibold text-gray-700 text-xs">Weekly Dose</label>
+                  <input type="number" step="any" required placeholder="e.g. 1.5" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="font-semibold text-gray-700 text-xs">Deployment Date</label>
+              <input type="date" required value={deploymentDate} onChange={(e) => setDeploymentDate(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full" />
+            </div>
+            
+            <button type="submit" className="bg-[#0077b6] text-white font-bold py-3 mt-4 rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
+              Save Deployment
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   );

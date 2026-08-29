@@ -27,6 +27,18 @@ export default function Home() {
           <p className="text-gray-600 mt-2 text-sm">View all deployments and export to Excel.</p>
         </Link>
 
+        <Link href="/address" className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all group flex flex-col items-center justify-center text-center">
+          <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📍</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-1">Address</h2>
+          <p className="text-sm text-gray-500 font-medium">Upload & search documents</p>
+        </Link>
+
+        <Link href="/couriers" className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all group flex flex-col items-center justify-center text-center">
+          <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📦</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-1">Courier Tracking</h2>
+          <p className="text-sm text-gray-500 font-medium">Log and track shipments</p>
+        </Link>
+
       </div>
     </main>
   );

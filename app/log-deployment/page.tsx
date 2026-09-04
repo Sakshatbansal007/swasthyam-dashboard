@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { Activity, ArrowLeft, CheckCircle2, Calendar } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export default function LogDeployment() {
   const [category, setCategory] = useState('sensor'); 
@@ -13,12 +13,14 @@ export default function LogDeployment() {
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
+  const [area, setArea] = useState('');
   
   const [selectedProduct, setSelectedProduct] = useState(''); 
   const [doctorName, setDoctorName] = useState(''); 
   const [deploymentDate, setDeploymentDate] = useState('');
   const [quantity, setQuantity] = useState('1'); 
   const [weeklyDose, setWeeklyDose] = useState(''); 
+  const [needles, setNeedles] = useState<number | ''>('');
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
@@ -49,6 +51,21 @@ export default function LogDeployment() {
     fetchDoctors();
   }, []);
 
+  // Auto-calculate needles when injection details change
+  useEffect(() => {
+    if (category === 'injection' && selectedProduct && quantity && weeklyDose) {
+      const productObj = products.find(p => String(p.id) === selectedProduct);
+      if (productObj) {
+        const qty = parseInt(quantity) || 1;
+        const totalMgBought = productObj.total_dose * qty;
+        const daysToAdd = Math.floor((totalMgBought / parseFloat(weeklyDose)) * 7);
+        setNeedles(daysToAdd);
+      }
+    } else {
+      setNeedles('');
+    }
+  }, [category, selectedProduct, quantity, weeklyDose, products]);
+
   const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const typedName = e.target.value;
     setPatientName(typedName);
@@ -58,17 +75,25 @@ export default function LogDeployment() {
     if (foundPatient) {
       setPatientPhone(foundPatient.phone || '');
       setPatientEmail(foundPatient.email || ''); 
+      setArea(foundPatient.area || '');
       
       const { data: pastDeploys } = await supabase
         .from('injection_deployments')
-        .select('doctors(name)')
+        .select('doctors(name), weekly_dose')
         .eq('patient_id', foundPatient.id)
         .order('deployment_date', { ascending: false })
         .limit(1);
 
-      if (pastDeploys && pastDeploys.length > 0 && (pastDeploys[0] as any).doctors) {
-        setDoctorName((pastDeploys[0] as any).doctors.name);
+      if (pastDeploys && pastDeploys.length > 0) {
+        if ((pastDeploys[0] as any).doctors) {
+          setDoctorName((pastDeploys[0] as any).doctors.name);
+        }
+        if ((pastDeploys[0] as any).weekly_dose) {
+          setWeeklyDose(String((pastDeploys[0] as any).weekly_dose));
+        }
       }
+    } else {
+      setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setDoctorName('');
     }
   };
 
@@ -113,11 +138,11 @@ export default function LogDeployment() {
 
     if (existingPatient) {
       patientId = existingPatient.id;
-      if (existingPatient.phone !== patientPhone || existingPatient.email !== patientEmail) {
-        await supabase.from('patients').update({ phone: patientPhone, email: patientEmail }).eq('id', patientId);
+      if (existingPatient.phone !== patientPhone || existingPatient.email !== patientEmail || existingPatient.area !== area) {
+        await supabase.from('patients').update({ phone: patientPhone, email: patientEmail, area }).eq('id', patientId);
       }
     } else {
-      const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail }]).select().single();
+      const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail, area }]).select().single();
       if (patientError) return setStatusMessage('Error saving patient.');
       patientId = newPatient.id;
       setExistingPatients([...existingPatients, newPatient]);
@@ -131,6 +156,7 @@ export default function LogDeployment() {
       insertData.injection_id = selectedProduct;
       insertData.weekly_dose = parseFloat(weeklyDose);
       insertData.doctor_id = finalDoctorId;
+      insertData.needles = needles;
     }
     if (category === 'medtronic') insertData.medtronic_id = selectedProduct;
 
@@ -140,7 +166,7 @@ export default function LogDeployment() {
       setStatusMessage('Error: ' + error.message);
     } else {
       setStatusMessage(`Perfect! Success: New deployment recorded successfully.`);
-      setPatientName(''); setPatientPhone(''); setPatientEmail(''); setWeeklyDose(''); setQuantity('1'); setDoctorName('');
+      setPatientName(''); setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setQuantity('1'); setDoctorName(''); setNeedles('');
     }
   };
 
@@ -164,7 +190,6 @@ export default function LogDeployment() {
         
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full">
           
-          {/* Segmented Control */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-700 mb-2">Deployment Category</label>
             <div className="flex bg-gray-100 p-1 rounded-xl">
@@ -187,9 +212,15 @@ export default function LogDeployment() {
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Patient Phone</label>
-              <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+            <div className="flex gap-4">
+              <div className="flex flex-col gap-1.5 w-1/2">
+                <label className="font-semibold text-gray-700 text-xs">Patient Phone</label>
+                <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              </div>
+              <div className="flex flex-col gap-1.5 w-1/2">
+                <label className="font-semibold text-gray-700 text-xs">Patient Area</label>
+                <input type="text" required placeholder="e.g. Downtown" value={area} onChange={(e) => setArea(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -214,15 +245,21 @@ export default function LogDeployment() {
             </div>
 
             <div className="flex gap-4">
-              <div className="flex flex-col gap-1.5 w-1/2">
-                <label className="font-semibold text-gray-700 text-xs">Quantity Assigned</label>
+              <div className={`flex flex-col gap-1.5 ${category === 'injection' ? 'w-1/3' : 'w-full'}`}>
+                <label className="font-semibold text-gray-700 text-xs">Quantity</label>
                 <input type="number" min="1" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
               </div>
               {category === 'injection' && (
-                <div className="flex flex-col gap-1.5 w-1/2">
-                  <label className="font-semibold text-gray-700 text-xs">Weekly Dose</label>
-                  <input type="number" step="any" required placeholder="e.g. 1.5" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
-                </div>
+                <>
+                  <div className="flex flex-col gap-1.5 w-1/3">
+                    <label className="font-semibold text-gray-700 text-xs">Weekly Dose</label>
+                    <input type="number" step="any" required placeholder="e.g. 1.5" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-1/3">
+                    <label className="font-semibold text-gray-700 text-xs">Needles <span className="text-gray-400 font-normal">(Auto)</span></label>
+                    <input type="number" readOnly value={needles} className="border border-gray-200 rounded-lg p-2.5 text-gray-500 bg-gray-50 outline-none cursor-not-allowed" />
+                  </div>
+                </>
               )}
             </div>
 

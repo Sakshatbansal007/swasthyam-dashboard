@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -19,9 +19,18 @@ export default function Home() {
 
       <h2 className="text-lg font-black text-gray-700 mb-4 tracking-wide">Operations & Deployments</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
-        {/* NEW COMPLAINTS LINK */}
+        {/* NEW CHQ INFORMATION LINK */}
+        <Link href="/cheques" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-violet-100 transition-all group relative">
+          <div className="bg-violet-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <Landmark className="text-violet-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-violet-600 transition-colors group-hover:translate-x-1" />
+          <h3 className="font-black text-gray-900 mb-1 text-base">CHQ Information</h3>
+          <p className="text-sm text-gray-500 font-bold">Log cheques, bank deposits, and track clearances</p>
+        </Link>
+
         <Link href="/complaints" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-orange-100 transition-all group relative">
           <div className="bg-orange-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="text-orange-600 w-6 h-6" />

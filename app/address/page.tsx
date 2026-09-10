@@ -42,13 +42,12 @@ export default function AddressArchive() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addressText.trim()) return setMessage('Error: Please enter an address.');
+    if (!addressText.trim()) return setMessage('ERROR: PLEASE ENTER AN ADDRESS.');
     
     setSaving(true);
-    setMessage('Saving...');
+    setMessage('SAVING...');
 
     try {
-      // Update patient list if new
       let patientExists = existingPatients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
       if (!patientExists) {
         const { data: newP, error: pErr } = await supabase
@@ -63,7 +62,6 @@ export default function AddressArchive() {
         await supabase.from('patients').update({ phone: phoneNumber }).eq('id', patientExists.id);
       }
 
-      // Save to new text address table
       const { error: dbError } = await supabase.from('patient_addresses').insert([{ 
         patient_name: patientName, 
         phone_number: phoneNumber, 
@@ -71,13 +69,13 @@ export default function AddressArchive() {
       }]);
       if (dbError) throw dbError;
 
-      setMessage('Success: Address saved to archive!');
+      setMessage('SUCCESS: ADDRESS SAVED TO ARCHIVE!');
       setPatientName('');
       setPhoneNumber('');
       setAddressText('');
       fetchAddresses(); 
     } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+      setMessage(`ERROR: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -85,7 +83,7 @@ export default function AddressArchive() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Address copied to clipboard!");
+    alert("ADDRESS COPIED TO CLIPBOARD!");
   };
 
   const filteredAddresses = addressRecords.filter(p => 
@@ -94,100 +92,97 @@ export default function AddressArchive() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans">
+    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans uppercase text-base">
       
       <header className="mb-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-5 h-5" /></div>
-          <span className="font-bold text-gray-900 text-lg tracking-tight">Healthcare Dashboard</span>
+          <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-6 h-6" /></div>
+          <span className="font-black text-gray-900 text-xl tracking-tight">Healthcare Dashboard</span>
         </div>
-        <Link href="/" className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        <Link href="/" className="flex items-center gap-2 text-base font-black text-blue-600 hover:text-blue-800 transition-colors">
+          <ArrowLeft className="w-5 h-5" /> Back to Dashboard
         </Link>
       </header>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Patient Address Archive</h1>
-        <p className="text-gray-500 text-sm font-medium">Save, search, and copy formatted shipping addresses for couriers.</p>
+        <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tighter">Patient Address Archive</h1>
+        <p className="text-gray-500 text-base font-bold">Save, search, and copy formatted shipping addresses for couriers.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Input Form */}
         <div className="col-span-1 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 h-fit">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Add New Address</h2>
+          <h2 className="text-2xl font-black text-gray-900 mb-6">Add New Address</h2>
           
-          <form onSubmit={handleSave} className="flex flex-col gap-5 text-sm">
+          <form onSubmit={handleSave} className="flex flex-col gap-5 text-sm font-bold">
             <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Patient Name</label>
+              <label className="font-black text-gray-700 text-sm">Patient Name</label>
               <input 
-                list="patient-list" required placeholder="e.g. Aria Montgomery" 
+                list="patient-list" required placeholder="E.G. ARIA MONTGOMERY" 
                 value={patientName} onChange={handlePatientNameChange} 
-                className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
               />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Patient Phone</label>
+              <label className="font-black text-gray-700 text-sm">Patient Phone</label>
               <input 
                 type="text" required placeholder="+1 (555) 893-1122" 
                 value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} 
-                className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
               />
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">
-              <label className="font-semibold text-gray-700 text-xs flex justify-between items-end">
+              <label className="font-black text-gray-700 text-sm flex justify-between items-end">
                 <span>Shipping Address</span>
-                <span className="text-[10px] text-gray-400 font-normal">Press Enter for new line</span>
+                <span className="text-xs text-gray-400 font-bold">Press Enter for new line</span>
               </label>
-              {/* Multi-line text area */}
               <textarea 
                 required
                 rows={5}
-                placeholder="123 Main Street&#10;Apartment 4B&#10;Mumbai, Maharashtra 400001"
+                placeholder="123 MAIN STREET&#10;APARTMENT 4B&#10;MUMBAI, MAHARASHTRA 400001"
                 value={addressText}
                 onChange={(e) => setAddressText(e.target.value)}
-                className="border border-gray-200 rounded-xl p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none leading-relaxed"
+                className="border border-gray-200 rounded-xl p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none leading-relaxed uppercase"
               />
             </div>
 
             <button 
               type="submit" disabled={saving}
-              className="bg-[#0077b6] text-white font-bold py-3 mt-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-2"
+              className="bg-[#0077b6] text-white font-black py-4 mt-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-2 text-base uppercase"
             >
-              <MapPin className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Address'}
+              <MapPin className="w-5 h-5" />
+              {saving ? 'SAVING...' : 'SAVE ADDRESS'}
             </button>
             
             {message && (
-              <div className={`p-3 rounded-lg text-xs font-bold flex items-center gap-2 ${message.includes('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                {message.includes('Success') && <CheckCircle2 className="w-4 h-4"/>}
+              <div className={`p-4 rounded-lg text-sm font-black flex items-center gap-2 ${message.includes('ERROR') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {message.includes('SUCCESS') && <CheckCircle2 className="w-5 h-5"/>}
                 {message}
               </div>
             )}
           </form>
         </div>
 
-        {/* Right Side Gallery / List */}
         <div className="col-span-1 lg:col-span-2">
           
           <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
             <input 
-              type="text" placeholder="Search by Patient Name or Phone..." 
+              type="text" placeholder="SEARCH BY PATIENT NAME OR PHONE..." 
               value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} 
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-50 shadow-sm transition-all bg-white" 
+              className="w-full pl-14 pr-4 py-4 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-600 text-sm font-black focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm transition-all bg-white uppercase" 
             />
           </div>
 
-          <h3 className="text-sm font-bold text-gray-800 mb-4 tracking-wide">Saved Addresses ({filteredAddresses.length})</h3>
+          <h3 className="text-lg font-black text-gray-800 mb-4 tracking-wide">Saved Addresses ({filteredAddresses.length})</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredAddresses.length === 0 ? (
-              <div className="col-span-full p-8 text-center text-gray-400 font-medium bg-white rounded-2xl border border-gray-100 shadow-sm">
-                No addresses found matching your search.
+              <div className="col-span-full p-8 text-center text-gray-400 font-black bg-white rounded-2xl border border-gray-100 shadow-sm text-lg">
+                NO ADDRESSES FOUND MATCHING YOUR SEARCH.
               </div>
             ) : (
               filteredAddresses.map((record) => (
@@ -195,26 +190,25 @@ export default function AddressArchive() {
                   
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h3 className="font-bold text-gray-900 mb-1">{record.patient_name}</h3>
-                      <p className="text-gray-500 text-xs font-medium">📞 {record.phone_number}</p>
+                      <h3 className="font-black text-gray-900 mb-1 text-lg">{record.patient_name}</h3>
+                      <p className="text-gray-500 text-sm font-bold">📞 {record.phone_number}</p>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                    <span className="text-xs text-gray-400 font-black uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                       {new Date(record.created_at).toLocaleDateString()}
                     </span>
                   </div>
                   
-                  {/* The Address Display - Notice 'whitespace-pre-wrap' handles the line breaks perfectly */}
                   <div className="bg-[#f8fcff] p-4 rounded-xl border border-blue-50 mb-4 flex-grow">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap font-medium leading-relaxed font-mono">
+                    <p className="text-base text-gray-800 whitespace-pre-wrap font-bold leading-relaxed font-mono uppercase">
                       {record.address_text}
                     </p>
                   </div>
 
                   <button 
                     onClick={() => copyToClipboard(record.address_text)}
-                    className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 font-bold text-xs py-2.5 rounded-lg transition-colors mt-auto"
+                    className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 font-black text-sm py-3 rounded-lg transition-colors mt-auto uppercase"
                   >
-                    <Copy className="w-4 h-4 text-blue-600" /> Copy Address for Courier
+                    <Copy className="w-5 h-5 text-blue-600" /> COPY ADDRESS FOR COURIER
                   </button>
 
                 </div>

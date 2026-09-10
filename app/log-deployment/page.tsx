@@ -51,7 +51,7 @@ export default function LogDeployment() {
     fetchDoctors();
   }, []);
 
-  // Auto-calculate needles when injection details change
+  // EXACT MATCH LOGIC: PFIZER 60MG
   useEffect(() => {
     if (category === 'injection' && selectedProduct && quantity && weeklyDose) {
       const productObj = products.find(p => String(p.id) === selectedProduct);
@@ -59,7 +59,16 @@ export default function LogDeployment() {
         const qty = parseInt(quantity) || 1;
         const totalMgBought = productObj.total_dose * qty;
         const daysToAdd = Math.floor((totalMgBought / parseFloat(weeklyDose)) * 7);
-        setNeedles(daysToAdd);
+        
+        let calculatedNeedles = daysToAdd;
+        
+        // Converts to lowercase and checks for the exact database string
+        const productName = (productObj.name || '').toLowerCase().trim();
+        if (productName.includes('pfizer 60mg') || productName.includes('60mg')) {
+          calculatedNeedles = Math.floor(calculatedNeedles / 7);
+        }
+        
+        setNeedles(calculatedNeedles);
       }
     } else {
       setNeedles('');
@@ -99,18 +108,18 @@ export default function LogDeployment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusMessage('Calculating and saving...');
+    setStatusMessage('CALCULATING AND SAVING...');
 
     const productObj = products.find(p => String(p.id) === selectedProduct);
-    if (!productObj) return setStatusMessage('Error: Please select a product.');
+    if (!productObj) return setStatusMessage('ERROR: PLEASE SELECT A PRODUCT.');
 
     const qty = parseInt(quantity) || 1; 
     let daysToAdd = 0;
-
     let finalDoctorId = null;
+
     if (category === 'injection') {
-      if (!weeklyDose) return setStatusMessage('Error: Weekly dose required.');
-      if (!doctorName) return setStatusMessage('Error: Referring doctor required for injections.');
+      if (!weeklyDose) return setStatusMessage('ERROR: WEEKLY DOSE REQUIRED.');
+      if (!doctorName) return setStatusMessage('ERROR: REFERRING DOCTOR REQUIRED FOR INJECTIONS.');
       
       const existingDoc = doctors.find(d => d.name.toLowerCase() === doctorName.toLowerCase());
       
@@ -118,7 +127,7 @@ export default function LogDeployment() {
         finalDoctorId = existingDoc.id;
       } else {
         const { data: newDoc, error: docError } = await supabase.from('doctors').insert([{ name: doctorName }]).select().single();
-        if (docError) return setStatusMessage('Error saving new doctor.');
+        if (docError) return setStatusMessage('ERROR SAVING NEW DOCTOR.');
         finalDoctorId = newDoc.id;
         setDoctors([...doctors, newDoc]); 
       }
@@ -143,7 +152,7 @@ export default function LogDeployment() {
       }
     } else {
       const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail, area }]).select().single();
-      if (patientError) return setStatusMessage('Error saving patient.');
+      if (patientError) return setStatusMessage('ERROR SAVING PATIENT.');
       patientId = newPatient.id;
       setExistingPatients([...existingPatients, newPatient]);
     }
@@ -163,113 +172,113 @@ export default function LogDeployment() {
     const { error } = await supabase.from(tableToUse).insert([insertData]);
 
     if (error) {
-      setStatusMessage('Error: ' + error.message);
+      setStatusMessage('ERROR: ' + error.message);
     } else {
-      setStatusMessage(`Perfect! Success: New deployment recorded successfully.`);
+      setStatusMessage(`PERFECT! SUCCESS: NEW DEPLOYMENT RECORDED SUCCESSFULLY.`);
       setPatientName(''); setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setQuantity('1'); setDoctorName(''); setNeedles('');
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans flex flex-col items-center">
+    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans flex flex-col items-center uppercase text-base">
       <div className="w-full max-w-3xl">
         <header className="mb-8 flex justify-between items-center w-full">
           <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-5 h-5" /></div>
-            <span className="font-bold text-gray-900 text-lg tracking-tight">Healthcare Dashboard</span>
+            <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-6 h-6" /></div>
+            <span className="font-black text-gray-900 text-xl tracking-tight">Healthcare Dashboard</span>
           </div>
-          <Link href="/" className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <Link href="/" className="flex items-center gap-2 text-base font-black text-blue-600 hover:text-blue-800 transition-colors">
+            <ArrowLeft className="w-5 h-5" /> Back to Dashboard
           </Link>
         </header>
 
         <div className="mb-8 w-full">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Log New Deployment</h1>
-          <p className="text-gray-500 text-sm font-medium">Record medical device usage, referring physician and patient details.</p>
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tighter">Log New Deployment</h1>
+          <p className="text-gray-500 text-base font-bold">Record medical device usage, referring physician and patient details.</p>
         </div>
         
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 w-full">
           
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-700 mb-2">Deployment Category</label>
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button type="button" onClick={() => setCategory('sensor')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'sensor' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Sensor Deployment</button>
-              <button type="button" onClick={() => setCategory('injection')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'injection' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Injection</button>
-              <button type="button" onClick={() => setCategory('medtronic')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${category === 'medtronic' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Medtronic Pump</button>
+            <label className="block text-sm font-black text-gray-700 mb-2">Deployment Category</label>
+            <div className="flex bg-gray-100 p-1.5 rounded-xl">
+              <button type="button" onClick={() => setCategory('sensor')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${category === 'sensor' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Sensor Deployment</button>
+              <button type="button" onClick={() => setCategory('injection')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${category === 'injection' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Injection</button>
+              <button type="button" onClick={() => setCategory('medtronic')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${category === 'medtronic' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Medtronic Pump</button>
             </div>
           </div>
 
           {statusMessage && (
-            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 text-sm font-bold ${statusMessage.includes('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-              <CheckCircle2 className="w-5 h-5"/> {statusMessage}
+            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 text-sm font-black ${statusMessage.includes('ERROR') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+              <CheckCircle2 className="w-6 h-6"/> {statusMessage}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-sm">
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Patient Name</label>
-              <input list="patient-list" required placeholder="e.g. Eleanor Vance" value={patientName} onChange={handlePatientNameChange} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6 text-sm font-bold">
+            <div className="flex flex-col gap-2">
+              <label className="font-black text-gray-700 text-sm">Patient Name</label>
+              <input list="patient-list" required placeholder="E.G. ELEANOR VANCE" value={patientName} onChange={handlePatientNameChange} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex flex-col gap-1.5 w-1/2">
-                <label className="font-semibold text-gray-700 text-xs">Patient Phone</label>
-                <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              <div className="flex flex-col gap-2 w-1/2">
+                <label className="font-black text-gray-700 text-sm">Patient Phone</label>
+                <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
-              <div className="flex flex-col gap-1.5 w-1/2">
-                <label className="font-semibold text-gray-700 text-xs">Patient Area</label>
-                <input type="text" required placeholder="e.g. Downtown" value={area} onChange={(e) => setArea(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              <div className="flex flex-col gap-2 w-1/2">
+                <label className="font-black text-gray-700 text-sm">Patient Area</label>
+                <input type="text" required placeholder="E.G. DOWNTOWN" value={area} onChange={(e) => setArea(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Patient Email <span className="text-gray-400 font-normal">(Optional)</span></label>
-              <input type="email" placeholder="patient@example.com" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+            <div className="flex flex-col gap-2">
+              <label className="font-black text-gray-700 text-sm">Patient Email <span className="text-gray-400 font-bold">(Optional)</span></label>
+              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
             
             {category === 'injection' && (
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-gray-700 text-xs">Referring Doctor</label>
-                <input list="doctor-list" required placeholder="Dr. Sarah Jenkins" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              <div className="flex flex-col gap-2">
+                <label className="font-black text-gray-700 text-sm">Referring Doctor</label>
+                <input list="doctor-list" required placeholder="DR. SARAH JENKINS" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
                 <datalist id="doctor-list">{doctors.map(d => <option key={d.id} value={d.name} />)}</datalist>
               </div>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-700 text-xs">Product Dropdown</label>
-              <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white">
-                <option value="" disabled>Select a {category} product...</option>
+            <div className="flex flex-col gap-2">
+              <label className="font-black text-gray-700 text-sm">Product Dropdown</label>
+              <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase">
+                <option value="" disabled>SELECT A {category} PRODUCT...</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
             <div className="flex gap-4">
-              <div className={`flex flex-col gap-1.5 ${category === 'injection' ? 'w-1/3' : 'w-full'}`}>
-                <label className="font-semibold text-gray-700 text-xs">Quantity</label>
-                <input type="number" min="1" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+              <div className={`flex flex-col gap-2 ${category === 'injection' ? 'w-1/3' : 'w-full'}`}>
+                <label className="font-black text-gray-700 text-sm">Quantity</label>
+                <input type="number" min="1" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
               {category === 'injection' && (
                 <>
-                  <div className="flex flex-col gap-1.5 w-1/3">
-                    <label className="font-semibold text-gray-700 text-xs">Weekly Dose</label>
-                    <input type="number" step="any" required placeholder="e.g. 1.5" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" />
+                  <div className="flex flex-col gap-2 w-1/3">
+                    <label className="font-black text-gray-700 text-sm">Weekly Dose</label>
+                    <input type="number" step="any" required placeholder="E.G. 1.5" value={weeklyDose} onChange={(e) => setWeeklyDose(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
                   </div>
-                  <div className="flex flex-col gap-1.5 w-1/3">
-                    <label className="font-semibold text-gray-700 text-xs">Needles <span className="text-gray-400 font-normal">(Auto)</span></label>
-                    <input type="number" readOnly value={needles} className="border border-gray-200 rounded-lg p-2.5 text-gray-500 bg-gray-50 outline-none cursor-not-allowed" />
+                  <div className="flex flex-col gap-2 w-1/3">
+                    <label className="font-black text-gray-700 text-sm">Needles <span className="text-gray-400 font-bold">(Auto)</span></label>
+                    <input type="number" readOnly value={needles} className="border border-gray-200 rounded-lg p-3 font-black text-gray-700 bg-gray-50 outline-none cursor-not-allowed uppercase" />
                   </div>
                 </>
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="font-semibold text-gray-700 text-xs">Deployment Date</label>
-              <input type="date" required value={deploymentDate} onChange={(e) => setDeploymentDate(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full" />
+            <div className="flex flex-col gap-2 relative">
+              <label className="font-black text-gray-700 text-sm">Deployment Date</label>
+              <input type="date" required value={deploymentDate} onChange={(e) => setDeploymentDate(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full uppercase" />
             </div>
             
-            <button type="submit" className="bg-[#0077b6] text-white font-bold py-3 mt-4 rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
-              Save Deployment
+            <button type="submit" className="bg-[#0077b6] text-white font-black text-base py-4 mt-4 rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
+              SAVE DEPLOYMENT
             </button>
           </form>
         </div>

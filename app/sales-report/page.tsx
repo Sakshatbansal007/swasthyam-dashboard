@@ -33,7 +33,7 @@ export default function SalesReport() {
     let filteredSales = sales;
     if (startDate) filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(startDate));
     if (endDate) filteredSales = filteredSales.filter(s => new Date(s.date) <= new Date(endDate));
-    if (filteredSales.length === 0) return alert("No sales found in this date range.");
+    if (filteredSales.length === 0) return alert("NO SALES FOUND IN THIS DATE RANGE.");
 
     const headers = "Deployment Date,Due Date,Patient,Phone,Area,Product,Type,Quantity,Doctor,Needles\n";
     const rows = filteredSales.map(s => `${s.date},${s.dueDate},"${s.patient}","${s.phone || ''}","${s.area || ''}","${s.product}",${s.type},${s.qty},"${s.doctor || 'N/A'}",${s.needles || 'N/A'}`).join("\n");
@@ -56,32 +56,32 @@ export default function SalesReport() {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="border-b border-gray-50 bg-gray-50">
-                <th className="p-4 text-xs font-bold text-gray-800">Deployed Date</th>
-                <th className="p-4 text-xs font-bold text-gray-800">Patient Name</th>
-                <th className="p-4 text-xs font-bold text-gray-800">Phone</th>
-                <th className="p-4 text-xs font-bold text-gray-800">Area</th>
-                {isInjection && <th className="p-4 text-xs font-bold text-gray-800">Referring Doctor</th>}
-                <th className="p-4 text-xs font-bold text-gray-800">Product</th>
-                <th className="p-4 text-xs font-bold text-gray-800">Qty</th>
-                {isInjection && <th className="p-4 text-xs font-bold text-gray-800">Needles</th>}
-                <th className="p-4 text-xs font-bold text-gray-800">Due Date</th>
+                <th className="p-4 text-sm font-black text-gray-800">Deployed Date</th>
+                <th className="p-4 text-sm font-black text-gray-800">Patient Name</th>
+                <th className="p-4 text-sm font-black text-gray-800">Phone</th>
+                <th className="p-4 text-sm font-black text-gray-800">Area</th>
+                {isInjection && <th className="p-4 text-sm font-black text-gray-800">Referring Doctor</th>}
+                <th className="p-4 text-sm font-black text-gray-800">Product</th>
+                <th className="p-4 text-sm font-black text-gray-800">Qty</th>
+                {isInjection && <th className="p-4 text-sm font-black text-gray-800">Needles</th>}
+                <th className="p-4 text-sm font-black text-gray-800">Due Date</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 ? (
-                <tr><td colSpan={isInjection ? 9 : 7} className="p-6 text-center text-gray-400 font-medium">No sales recorded yet.</td></tr>
+                <tr><td colSpan={isInjection ? 9 : 7} className="p-6 text-center text-gray-400 font-bold">No sales recorded yet.</td></tr>
               ) : (
                 data.map((sale, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="p-4 font-bold text-gray-900">{sale.date}</td>
-                    <td className="p-4 font-medium text-gray-900">{sale.patient}</td>
-                    <td className="p-4 font-medium text-gray-500">{sale.phone || 'N/A'}</td>
-                    <td className="p-4 font-medium text-gray-600">{sale.area || 'N/A'}</td>
-                    {isInjection && <td className="p-4 font-medium text-gray-500">{sale.doctor || 'N/A'}</td>}
-                    <td className="p-4 font-medium text-gray-600">{sale.product}</td>
-                    <td className="p-4 font-bold text-gray-900">{sale.qty}</td>
-                    {isInjection && <td className="p-4 font-bold text-gray-900">{sale.needles || 'N/A'}</td>}
-                    <td className="p-4 font-medium text-gray-600">{sale.dueDate}</td>
+                  <tr key={i} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-blue-50/50 transition-colors">
+                    <td className="p-4 font-black text-gray-900">{sale.date}</td>
+                    <td className="p-4 font-bold text-gray-900">{sale.patient}</td>
+                    <td className="p-4 font-bold text-gray-500">{sale.phone || 'N/A'}</td>
+                    <td className="p-4 font-bold text-gray-600">{sale.area || 'N/A'}</td>
+                    {isInjection && <td className="p-4 font-bold text-gray-500">{sale.doctor || 'N/A'}</td>}
+                    <td className="p-4 font-bold text-gray-600">{sale.product}</td>
+                    <td className="p-4 font-black text-gray-900">{sale.qty}</td>
+                    {isInjection && <td className="p-4 font-black text-gray-900">{sale.needles || 'N/A'}</td>}
+                    <td className="p-4 font-bold text-gray-600">{sale.dueDate}</td>
                   </tr>
                 ))
               )}
@@ -93,48 +93,46 @@ export default function SalesReport() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans">
+    <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans uppercase text-base">
       <header className="mb-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-5 h-5" /></div>
-          <span className="font-bold text-gray-900 text-lg tracking-tight">Healthcare Dashboard</span>
+          <div className="bg-blue-600 p-1.5 rounded-lg"><Activity className="text-white w-6 h-6" /></div>
+          <span className="font-black text-gray-900 text-xl tracking-tight">Healthcare Dashboard</span>
         </div>
-        <Link href="/" className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        <Link href="/" className="flex items-center gap-2 text-base font-black text-blue-600 hover:text-blue-800 transition-colors">
+          <ArrowLeft className="w-5 h-5" /> Back to Dashboard
         </Link>
       </header>
 
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Sales Reports</h1>
-          <p className="text-gray-500 text-sm font-medium">Analyze deployment records, device metrics and export spreadsheets.</p>
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3 tracking-tighter">Sales Reports</h1>
+          <p className="text-gray-500 text-base font-bold">Analyze deployment records, device metrics and export spreadsheets.</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-4 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-gray-600">Start Date:</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50" />
+            <label className="text-sm font-black text-gray-600">Start Date:</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50 uppercase" />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-gray-600">End Date:</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50" />
+            <label className="text-sm font-black text-gray-600">End Date:</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50 uppercase" />
           </div>
-          <button onClick={downloadExcel} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-sm ml-2">
-            <Download className="w-4 h-4" /> Export Range
+          <button onClick={downloadExcel} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm py-3 px-5 rounded-lg transition-colors shadow-sm ml-2 uppercase">
+            <Download className="w-5 h-5" /> Export Range
           </button>
         </div>
       </div>
 
-      {/* Segmented Control for Table Selection */}
       <div className="mb-6">
-        <div className="flex bg-gray-200/50 p-1 rounded-xl w-full max-w-md">
-          <button type="button" onClick={() => setActiveTab('Sensor')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'Sensor' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}>Sensors</button>
-          <button type="button" onClick={() => setActiveTab('Injection')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'Injection' ? 'bg-white shadow-sm text-amber-600' : 'text-gray-500 hover:text-gray-700'}`}>Injections</button>
-          <button type="button" onClick={() => setActiveTab('Medtronic')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'Medtronic' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Medtronic Pump</button>
+        <div className="flex bg-gray-200/50 p-1.5 rounded-xl w-full max-w-md">
+          <button type="button" onClick={() => setActiveTab('Sensor')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${activeTab === 'Sensor' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}>Sensors</button>
+          <button type="button" onClick={() => setActiveTab('Injection')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${activeTab === 'Injection' ? 'bg-white shadow-sm text-amber-600' : 'text-gray-500 hover:text-gray-700'}`}>Injections</button>
+          <button type="button" onClick={() => setActiveTab('Medtronic')} className={`flex-1 py-3 text-sm font-black rounded-lg transition-all uppercase ${activeTab === 'Medtronic' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Medtronic Pump</button>
         </div>
       </div>
       
-      {/* Conditionally render the selected table */}
       {activeTab === 'Sensor' && renderTable(sensorSales, 'green', false)}
       {activeTab === 'Injection' && renderTable(injectionSales, 'yellow', true)} 
       {activeTab === 'Medtronic' && renderTable(medtronicSales, 'blue', false)}

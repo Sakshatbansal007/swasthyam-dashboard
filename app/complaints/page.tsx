@@ -147,23 +147,23 @@ export default function Complaints() {
                     <div className="text-xs font-bold text-gray-500 mt-0.5">DAYS: {c.working_days} | PIC: <span className={c.sensor_pic === 'YES' ? 'text-green-600' : 'text-red-600'}>{c.sensor_pic}</span></div>
                   </td>
                   <td className="p-4 text-center">
-                    <select value={c.step_1} onChange={(e) => updateStep(c.id, 'step_1', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${c.step_1 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
-                      <option value="NO">NO</option><option value="YES">YES</option>
+                    <select value={c.step_1} onChange={(e) => updateStep(c.id, 'step_1', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer uppercase ${c.step_1 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
+                      <option value="NO" className="uppercase font-bold">NO</option><option value="YES" className="uppercase font-bold">YES</option>
                     </select>
                   </td>
                   <td className="p-4 text-center">
-                    <select value={c.step_2} onChange={(e) => updateStep(c.id, 'step_2', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${c.step_2 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
-                      <option value="NO">NO</option><option value="YES">YES</option>
+                    <select value={c.step_2} onChange={(e) => updateStep(c.id, 'step_2', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer uppercase ${c.step_2 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
+                      <option value="NO" className="uppercase font-bold">NO</option><option value="YES" className="uppercase font-bold">YES</option>
                     </select>
                   </td>
                   <td className="p-4 text-center">
-                    <select value={c.step_3} onChange={(e) => updateStep(c.id, 'step_3', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${c.step_3 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
-                      <option value="NO">NO</option><option value="YES">YES</option>
+                    <select value={c.step_3} onChange={(e) => updateStep(c.id, 'step_3', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer uppercase ${c.step_3 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
+                      <option value="NO" className="uppercase font-bold">NO</option><option value="YES" className="uppercase font-bold">YES</option>
                     </select>
                   </td>
                   <td className="p-4 text-center">
-                    <select value={c.step_4} onChange={(e) => updateStep(c.id, 'step_4', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${c.step_4 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
-                      <option value="NO">NO</option><option value="YES">YES</option>
+                    <select value={c.step_4} onChange={(e) => updateStep(c.id, 'step_4', e.target.value)} className={`font-black text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer uppercase ${c.step_4 === 'YES' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}>
+                      <option value="NO" className="uppercase font-bold">NO</option><option value="YES" className="uppercase font-bold">YES</option>
                     </select>
                   </td>
                 </tr>
@@ -224,9 +224,9 @@ export default function Complaints() {
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Sensor Company / Name</label>
-              <select required value={sensorName} onChange={(e) => setSensorName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase">
-                <option value="" disabled>SELECT A SENSOR...</option>
-                {sensors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              <select required value={sensorName} onChange={(e) => setSensorName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
+                <option value="" disabled className="uppercase font-bold">SELECT A SENSOR...</option>
+                {sensors.map(s => <option key={s.id} value={s.name} className="uppercase font-bold">{s.name?.toUpperCase() || s.name}</option>)}
               </select>
             </div>
 
@@ -252,8 +252,8 @@ export default function Complaints() {
               </div>
               <div className="flex flex-col gap-2 w-1/3">
                 <label className="font-black text-gray-700 text-sm">Pic?</label>
-                <select value={sensorPic} onChange={(e) => setSensorPic(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase">
-                  <option value="NO">NO</option><option value="YES">YES</option>
+                <select value={sensorPic} onChange={(e) => setSensorPic(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
+                  <option value="NO" className="uppercase font-bold">NO</option><option value="YES" className="uppercase font-bold">YES</option>
                 </select>
               </div>
             </div>

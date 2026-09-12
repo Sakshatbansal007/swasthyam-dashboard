@@ -12,6 +12,7 @@ export default function Cheques() {
   // Form States
   const [date, setDate] = useState('');
   const [chqNo, setChqNo] = useState('');
+  const [bankName, setBankName] = useState('');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dr, setDr] = useState('');
@@ -45,6 +46,7 @@ export default function Cheques() {
     const { error } = await supabase.from('cheques').insert([{ 
       date: date,
       chq_no: chqNo,
+      bank_name: bankName.trim(),
       name: name,
       amount: amount,
       dr: dr,
@@ -57,7 +59,7 @@ export default function Cheques() {
       setStatusMessage('ERROR: ' + error.message);
     } else {
       setStatusMessage('SUCCESS: CHEQUE RECORDED.');
-      setDate(''); setChqNo(''); setName(''); setAmount(''); setDr(''); setCr(''); setDueDate(''); setStatus('PENDING');
+      setDate(''); setChqNo(''); setBankName(''); setName(''); setAmount(''); setDr(''); setCr(''); setDueDate(''); setStatus('PENDING');
       fetchData(); 
     }
   };
@@ -69,10 +71,11 @@ export default function Cheques() {
 
   const filteredCheques = cheques.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.chq_no.toLowerCase().includes(searchQuery.toLowerCase())
+    c.chq_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.bank_name && c.bank_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Split tables based on your logic
+  // Split tables based on logic
   const pendingOrBankCheques = filteredCheques.filter(c => c.status === 'PENDING' || c.status === 'BANK');
   const swasthyamCheques = filteredCheques.filter(c => c.status === 'SWASTHYAM');
 
@@ -86,30 +89,32 @@ export default function Cheques() {
     <div className="mb-10">
       <div className={`flex items-center gap-2 p-5 rounded-t-xl border-b border-gray-100 ${bgClass}`}>
         {icon}
-        <h3 className={`font-black text-base ${colorClass}`}>{title} ({data.length})</h3>
+        <h3 className={`font-black text-base ${colorClass} uppercase`}>{title} ({data.length})</h3>
       </div>
       <div className="bg-white rounded-b-xl shadow-sm border border-t-0 border-gray-100 overflow-x-auto">
         <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="p-4 text-sm font-black text-gray-800">Date</th>
-              <th className="p-4 text-sm font-black text-gray-800">CHQ No</th>
-              <th className="p-4 text-sm font-black text-gray-800">Name</th>
-              <th className="p-4 text-sm font-black text-gray-800">Amount</th>
-              <th className="p-4 text-sm font-black text-gray-800">DR</th>
-              <th className="p-4 text-sm font-black text-gray-800">CR</th>
-              <th className="p-4 text-sm font-black text-gray-800">Due Date</th>
-              <th className="p-4 text-sm font-black text-gray-800">Status</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Date</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">CHQ No</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Bank Name</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Name</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Amount</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">DR</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">CR</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Due Date</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase">Status</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
-              <tr><td colSpan={8} className="p-6 text-center text-gray-400 font-bold">NO CHEQUES FOUND.</td></tr>
+              <tr><td colSpan={9} className="p-6 text-center text-gray-400 font-bold uppercase">NO CHEQUES FOUND.</td></tr>
             ) : (
               data.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-violet-50/50 transition-colors">
                   <td className="p-4 font-bold text-gray-900">{c.date}</td>
                   <td className="p-4 font-black text-gray-900">{c.chq_no}</td>
+                  <td className="p-4 font-bold text-gray-700 uppercase">{c.bank_name || '-'}</td>
                   <td className="p-4 font-black text-gray-900">{c.name}</td>
                   <td className="p-4 font-black text-gray-900">₹ {c.amount}</td>
                   <td className="p-4 font-bold text-gray-600">{c.dr || '-'}</td>
@@ -121,9 +126,9 @@ export default function Cheques() {
                       onChange={(e) => updateStatus(c.id, e.target.value)}
                       className={`font-black uppercase text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${getStatusBadge(c.status)}`}
                     >
-                      <option value="PENDING">PENDING</option>
-                      <option value="BANK">BANK</option>
-                      <option value="SWASTHYAM">SWASTHYAM</option>
+                      <option value="PENDING" className="uppercase font-bold">PENDING</option>
+                      <option value="BANK" className="uppercase font-bold">BANK</option>
+                      <option value="SWASTHYAM" className="uppercase font-bold">SWASTHYAM</option>
                     </select>
                   </td>
                 </tr>
@@ -163,48 +168,54 @@ export default function Cheques() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-sm font-bold">
             
             <div className="flex flex-col gap-2">
-              <label className="font-black text-gray-700 text-sm">Date</label>
+              <label className="font-black text-gray-700 text-sm uppercase">Date</label>
               <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="font-black text-gray-700 text-sm">CHQ No</label>
-              <input type="text" required placeholder="000123456" value={chqNo} onChange={(e) => setChqNo(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase font-black" />
+            <div className="flex gap-4">
+              <div className="flex flex-col gap-2 w-1/2">
+                <label className="font-black text-gray-700 text-sm uppercase">CHQ No</label>
+                <input type="text" required placeholder="000123456" value={chqNo} onChange={(e) => setChqNo(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase font-black" />
+              </div>
+              <div className="flex flex-col gap-2 w-1/2">
+                <label className="font-black text-gray-700 text-sm uppercase">Bank Name</label>
+                <input type="text" placeholder="E.G. HDFC / SBI" value={bankName} onChange={(e) => setBankName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase font-bold" />
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="font-black text-gray-700 text-sm">Name</label>
+              <label className="font-black text-gray-700 text-sm uppercase">Name</label>
               <input list="patient-list" required placeholder="E.G. JANE DOE" value={name} onChange={(e) => setName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="font-black text-gray-700 text-sm">Amount</label>
+              <label className="font-black text-gray-700 text-sm uppercase">Amount</label>
               <input type="number" required placeholder="5000" value={amount} onChange={(e) => setAmount(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex gap-4">
               <div className="flex flex-col gap-2 w-1/2">
-                <label className="font-black text-gray-700 text-sm">DR</label>
+                <label className="font-black text-gray-700 text-sm uppercase">DR</label>
                 <input type="text" placeholder="DEBIT INFO" value={dr} onChange={(e) => setDr(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
               <div className="flex flex-col gap-2 w-1/2">
-                <label className="font-black text-gray-700 text-sm">CR</label>
+                <label className="font-black text-gray-700 text-sm uppercase">CR</label>
                 <input type="text" placeholder="CREDIT INFO" value={cr} onChange={(e) => setCr(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
             </div>
 
             <div className="flex gap-4">
               <div className="flex flex-col gap-2 w-1/2">
-                <label className="font-black text-gray-700 text-sm">Due Date</label>
+                <label className="font-black text-gray-700 text-sm uppercase">Due Date</label>
                 <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
               <div className="flex flex-col gap-2 w-1/2">
-                <label className="font-black text-gray-700 text-sm">Status</label>
+                <label className="font-black text-gray-700 text-sm uppercase">Status</label>
                 <select required value={status} onChange={(e) => setStatus(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-black">
-                  <option value="PENDING">PENDING</option>
-                  <option value="BANK">BANK</option>
-                  <option value="SWASTHYAM">SWASTHYAM</option>
+                  <option value="PENDING" className="uppercase font-bold">PENDING</option>
+                  <option value="BANK" className="uppercase font-bold">BANK</option>
+                  <option value="SWASTHYAM" className="uppercase font-bold">SWASTHYAM</option>
                 </select>
               </div>
             </div>
@@ -222,7 +233,7 @@ export default function Cheques() {
           <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
             <input 
-              type="text" placeholder="SEARCH CHEQUES BY NAME OR CHQ NO..." 
+              type="text" placeholder="SEARCH CHEQUES BY NAME, BANK OR CHQ NO..." 
               value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} 
               className="w-full pl-14 pr-4 py-4 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-600 text-sm font-black focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm transition-all bg-white uppercase" 
             />

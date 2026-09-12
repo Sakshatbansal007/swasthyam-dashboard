@@ -247,9 +247,9 @@ export default function LogDeployment() {
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Product Dropdown</label>
-              <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase">
-                <option value="" disabled>SELECT A {category} PRODUCT...</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <select required value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
+                <option value="" disabled className="uppercase font-bold">SELECT A {category.toUpperCase()} PRODUCT...</option>
+                {products.map(p => <option key={p.id} value={p.id} className="uppercase font-bold">{p.name?.toUpperCase() || p.name}</option>)}
               </select>
             </div>
 

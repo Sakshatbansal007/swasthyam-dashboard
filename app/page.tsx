@@ -1,15 +1,24 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut } from 'lucide-react';
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#f4f7f9] p-8 md:p-12 font-sans uppercase text-base">
       
-      <header className="mb-10 flex items-center gap-2">
-        <div className="bg-blue-600 p-1.5 rounded-lg">
-          <Activity className="text-white w-6 h-6" />
+      <header className="mb-10 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="bg-blue-600 p-1.5 rounded-lg">
+            <Activity className="text-white w-6 h-6" />
+          </div>
+          <span className="font-black text-gray-900 text-xl tracking-tight">Swasthyam Healthcare</span>
         </div>
-        <span className="font-black text-gray-900 text-xl tracking-tight">Swasthyam Healthcare</span>
+        <a
+          href="/api/auth/logout"
+          className="flex items-center gap-2 text-xs font-black text-red-500 hover:text-red-700 bg-white border border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl transition-all shadow-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </a>
       </header>
 
       <div className="mb-10">

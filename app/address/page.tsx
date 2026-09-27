@@ -11,6 +11,7 @@ export default function AddressArchive() {
   
   const [patientName, setPatientName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [area, setArea] = useState('');
   const [addressText, setAddressText] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -37,6 +38,10 @@ export default function AddressArchive() {
     const foundPatient = existingPatients.find(p => p.name.toLowerCase() === typedName.toLowerCase());
     if (foundPatient) {
       setPhoneNumber(foundPatient.phone || '');
+      setArea(foundPatient.area || '');
+    } else {
+      setPhoneNumber('');
+      setArea('');
     }
   };
 
@@ -52,14 +57,14 @@ export default function AddressArchive() {
       if (!patientExists) {
         const { data: newP, error: pErr } = await supabase
           .from('patients')
-          .insert([{ name: patientName, phone: phoneNumber }])
+          .insert([{ name: patientName, phone: phoneNumber, area }])
           .select()
           .single();
         if (!pErr && newP) {
           setExistingPatients([...existingPatients, newP]);
         }
-      } else if (patientExists.phone !== phoneNumber) {
-        await supabase.from('patients').update({ phone: phoneNumber }).eq('id', patientExists.id);
+      } else if (patientExists.phone !== phoneNumber || patientExists.area !== area) {
+        await supabase.from('patients').update({ phone: phoneNumber, area }).eq('id', patientExists.id);
       }
 
       const { error: dbError } = await supabase.from('patient_addresses').insert([{ 
@@ -72,6 +77,7 @@ export default function AddressArchive() {
       setMessage('SUCCESS: ADDRESS SAVED TO ARCHIVE!');
       setPatientName('');
       setPhoneNumber('');
+      setArea('');
       setAddressText('');
       fetchAddresses(); 
     } catch (error: any) {
@@ -87,8 +93,8 @@ export default function AddressArchive() {
   };
 
   const filteredAddresses = addressRecords.filter(p => 
-    p.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.phone_number.includes(searchQuery)
+    (p.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (p.phone_number || '').includes(searchQuery)
   );
 
   return (
@@ -132,6 +138,20 @@ export default function AddressArchive() {
                 value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} 
                 className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-black text-gray-700 text-sm">Patient Area</label>
+              <input 
+                list="area-list" type="text" required placeholder="E.G. SOUTH SIDE" 
+                value={area} onChange={(e) => setArea(e.target.value)} 
+                className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
+              />
+              <datalist id="area-list">
+                {Array.from(new Set(existingPatients.map(p => p.area).filter(Boolean))).map((a, i) => (
+                  <option key={i} value={a as string} />
+                ))}
+              </datalist>
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">

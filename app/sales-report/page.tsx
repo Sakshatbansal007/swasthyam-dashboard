@@ -13,13 +13,13 @@ export default function SalesReport() {
   useEffect(() => {
     async function fetchSales() {
       const [sensors, injections, medtronic] = await Promise.all([
-        supabase.from('sensor_deployments').select(`deployment_date, due_date, quantity, patients(name, phone, area), sensors(name)`),
+        supabase.from('sensor_deployments').select(`deployment_date, due_date, quantity, serial_number, patients(name, phone, area), sensors(name)`),
         supabase.from('injection_deployments').select(`deployment_date, due_date, quantity, needles, patients(name, phone, area), injections(name), doctors(name)`),
         supabase.from('medtronic_deployments').select(`deployment_date, due_date, quantity, patients(name, phone, area), medtronic(name)`)
       ]);
 
       const allSales = [];
-      if (sensors.data) allSales.push(...sensors.data.map((i: any) => ({ date: i.deployment_date, dueDate: i.due_date, patient: i.patients?.name, phone: i.patients?.phone, area: i.patients?.area, product: i.sensors?.name, qty: i.quantity, type: 'Sensor' })));
+      if (sensors.data) allSales.push(...sensors.data.map((i: any) => ({ date: i.deployment_date, dueDate: i.due_date, patient: i.patients?.name, phone: i.patients?.phone, area: i.patients?.area, product: i.sensors?.name, qty: i.quantity, serial: i.serial_number, type: 'Sensor' })));
       if (injections.data) allSales.push(...injections.data.map((i: any) => ({ date: i.deployment_date, dueDate: i.due_date, patient: i.patients?.name, phone: i.patients?.phone, area: i.patients?.area, product: i.injections?.name, doctor: i.doctors?.name, qty: i.quantity, needles: i.needles, type: 'Injection' })));
       if (medtronic.data) allSales.push(...medtronic.data.map((i: any) => ({ date: i.deployment_date, dueDate: i.due_date, patient: i.patients?.name, phone: i.patients?.phone, area: i.patients?.area, product: i.medtronic?.name, qty: i.quantity, type: 'Medtronic' })));
 
@@ -35,8 +35,8 @@ export default function SalesReport() {
     if (endDate) filteredSales = filteredSales.filter(s => new Date(s.date) <= new Date(endDate));
     if (filteredSales.length === 0) return alert("NO SALES FOUND IN THIS DATE RANGE.");
 
-    const headers = "Deployment Date,Due Date,Patient,Phone,Area,Product,Type,Quantity,Doctor,Needles\n";
-    const rows = filteredSales.map(s => `${s.date},${s.dueDate},"${s.patient}","${s.phone || ''}","${s.area || ''}","${s.product}",${s.type},${s.qty},"${s.doctor || 'N/A'}",${s.needles || 'N/A'}`).join("\n");
+    const headers = "Deployment Date,Due Date,Patient,Phone,Area,Product,Type,Quantity,Serial Number,Doctor,Needles\n";
+    const rows = filteredSales.map(s => `${s.date},${s.dueDate},"${s.patient}","${s.phone || ''}","${s.area || ''}","${s.product}",${s.type},${s.qty},"${s.serial || ''}","${s.doctor || 'N/A'}",${s.needles || 'N/A'}`).join("\n");
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -49,7 +49,7 @@ export default function SalesReport() {
   const injectionSales = sales.filter(s => s.type === 'Injection');
   const medtronicSales = sales.filter(s => s.type === 'Medtronic');
 
-  const renderTable = (data: any[], themeColor: 'green' | 'yellow' | 'blue', isInjection: boolean = false) => {
+  const renderTable = (data: any[], themeColor: 'green' | 'yellow' | 'blue', isInjection: boolean = false, isSensor: boolean = false) => {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
@@ -63,13 +63,14 @@ export default function SalesReport() {
                 {isInjection && <th className="p-4 text-sm font-black text-gray-800">Referring Doctor</th>}
                 <th className="p-4 text-sm font-black text-gray-800">Product</th>
                 <th className="p-4 text-sm font-black text-gray-800">Qty</th>
+                {isSensor && <th className="p-4 text-sm font-black text-gray-800">Serial No</th>}
                 {isInjection && <th className="p-4 text-sm font-black text-gray-800">Needles</th>}
                 <th className="p-4 text-sm font-black text-gray-800">Due Date</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 ? (
-                <tr><td colSpan={isInjection ? 9 : 7} className="p-6 text-center text-gray-400 font-bold">No sales recorded yet.</td></tr>
+                <tr><td colSpan={isInjection ? 9 : isSensor ? 8 : 7} className="p-6 text-center text-gray-400 font-bold">No sales recorded yet.</td></tr>
               ) : (
                 data.map((sale, i) => (
                   <tr key={i} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-blue-50/50 transition-colors">
@@ -80,6 +81,7 @@ export default function SalesReport() {
                     {isInjection && <td className="p-4 font-bold text-gray-500">{sale.doctor || 'N/A'}</td>}
                     <td className="p-4 font-bold text-gray-600">{sale.product}</td>
                     <td className="p-4 font-black text-gray-900">{sale.qty}</td>
+                    {isSensor && <td className="p-4 font-bold text-gray-600">{sale.serial || 'N/A'}</td>}
                     {isInjection && <td className="p-4 font-black text-gray-900">{sale.needles || 'N/A'}</td>}
                     <td className="p-4 font-bold text-gray-600">{sale.dueDate}</td>
                   </tr>
@@ -133,9 +135,9 @@ export default function SalesReport() {
         </div>
       </div>
       
-      {activeTab === 'Sensor' && renderTable(sensorSales, 'green', false)}
-      {activeTab === 'Injection' && renderTable(injectionSales, 'yellow', true)} 
-      {activeTab === 'Medtronic' && renderTable(medtronicSales, 'blue', false)}
+      {activeTab === 'Sensor' && renderTable(sensorSales, 'green', false, true)}
+      {activeTab === 'Injection' && renderTable(injectionSales, 'yellow', true, false)} 
+      {activeTab === 'Medtronic' && renderTable(medtronicSales, 'blue', false, false)}
     </main>
   );
 }

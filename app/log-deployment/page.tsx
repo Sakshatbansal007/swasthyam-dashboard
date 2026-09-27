@@ -21,6 +21,7 @@ export default function LogDeployment() {
   const [quantity, setQuantity] = useState('1'); 
   const [weeklyDose, setWeeklyDose] = useState(''); 
   const [needles, setNeedles] = useState<number | ''>('');
+  const [serialNumber, setSerialNumber] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
@@ -160,7 +161,10 @@ export default function LogDeployment() {
     let tableToUse = category === 'sensor' ? 'sensor_deployments' : category === 'injection' ? 'injection_deployments' : 'medtronic_deployments';
     let insertData: any = { patient_id: patientId, deployment_date: deploymentDate, due_date: dueDate, quantity: qty, is_completed: false };
 
-    if (category === 'sensor') insertData.sensor_id = selectedProduct;
+    if (category === 'sensor') {
+      insertData.sensor_id = selectedProduct;
+      if (serialNumber.trim()) insertData.serial_number = serialNumber.trim();
+    }
     if (category === 'injection') {
       insertData.injection_id = selectedProduct;
       insertData.weekly_dose = parseFloat(weeklyDose);
@@ -175,7 +179,7 @@ export default function LogDeployment() {
       setStatusMessage('ERROR: ' + error.message);
     } else {
       setStatusMessage(`PERFECT! SUCCESS: NEW DEPLOYMENT RECORDED SUCCESSFULLY.`);
-      setPatientName(''); setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setQuantity('1'); setDoctorName(''); setNeedles('');
+      setPatientName(''); setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setQuantity('1'); setDoctorName(''); setNeedles(''); setSerialNumber('');
     }
   };
 
@@ -252,6 +256,13 @@ export default function LogDeployment() {
                 {products.map(p => <option key={p.id} value={p.id} className="uppercase font-bold">{p.name?.toUpperCase() || p.name}</option>)}
               </select>
             </div>
+
+            {category === 'sensor' && (
+              <div className="flex flex-col gap-2">
+                <label className="font-black text-gray-700 text-sm">Serial Number <span className="text-gray-400 font-bold">(Optional)</span></label>
+                <input type="text" placeholder="E.G. SN-12345" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              </div>
+            )}
 
             <div className="flex gap-4">
               <div className={`flex flex-col gap-2 ${category === 'injection' ? 'w-1/3' : 'w-full'}`}>

@@ -10,6 +10,10 @@ export default function CourierTracker() {
   const [existingPatients, setExistingPatients] = useState<any[]>([]);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState(''); 
   const [patientEmail, setPatientEmail] = useState('');
@@ -126,12 +130,32 @@ export default function CourierTracker() {
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const filteredCouriers = couriers.filter(c => 
-    c.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.tracking_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.patient_phone && c.patient_phone.includes(searchQuery)) ||
-    (c.sent_from && c.sent_from.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const downloadExcel = () => {
+    let filtered = couriers;
+    if (startDate) filtered = filtered.filter(c => new Date(c.dispatch_date) >= new Date(startDate));
+    if (endDate) filtered = filtered.filter(c => new Date(c.dispatch_date) <= new Date(endDate));
+    if (filtered.length === 0) return alert("NO SHIPMENTS FOUND IN THIS DATE RANGE.");
+
+    const headers = "Dispatch Date,Patient,Phone,Email,Area,Sent From,Tracking Number,Courier Company,Delivered Date,Status\n";
+    const rows = filtered.map(c => `"${c.dispatch_date}","${c.patient_name}","${c.patient_phone || ''}","${c.patient_email || ''}","${c.patient_area || ''}","${c.sent_from}","${c.tracking_number}","${c.courier_company}","${c.delivered_date || ''}","${c.status}"`).join("\n");
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Couriers_Report_${startDate || 'Start'}_to_${endDate || 'End'}.csv`;
+    a.click();
+  };
+
+  const filteredCouriers = couriers.filter(c => {
+    const matchesSearch = c.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      c.tracking_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.patient_phone && c.patient_phone.includes(searchQuery)) ||
+      (c.sent_from && c.sent_from.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+    const matchesMonth = selectedMonth ? c.dispatch_date?.startsWith(selectedMonth) : true;
+    
+    return matchesSearch && matchesMonth;
+  });
 
   const pendingCouriers = filteredCouriers.filter(c => c.status === 'In Transit' || c.status === 'Complaint');
   const completedCouriers = filteredCouriers.filter(c => c.status === 'Delivered' || c.status === 'Returned');
@@ -333,6 +357,25 @@ export default function CourierTracker() {
             )}
           </div>
         </form>
+      </div>
+
+      {/* Filters & Export */}
+      <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-start md:items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 w-full">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <label className="text-sm font-black text-gray-600 whitespace-nowrap">VIEW MONTH:</label>
+          <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50 uppercase w-full md:w-auto" />
+          <button type="button" onClick={() => setSelectedMonth('')} className="text-xs font-bold text-blue-600 hover:underline whitespace-nowrap">CLEAR</button>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <label className="text-sm font-black text-gray-600">START:</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm font-bold text-gray-900 uppercase" />
+          <label className="text-sm font-black text-gray-600">END:</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm font-bold text-gray-900 uppercase" />
+          <button type="button" onClick={downloadExcel} className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs py-2.5 px-4 rounded-lg transition-colors shadow-sm uppercase ml-auto md:ml-0">
+            EXPORT EXCEL
+          </button>
+        </div>
       </div>
 
       {/* Full-width Search Bar */}

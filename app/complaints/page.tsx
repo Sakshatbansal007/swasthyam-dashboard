@@ -9,6 +9,9 @@ export default function Complaints() {
   const [searchQuery, setSearchQuery] = useState('');
   const [existingPatients, setExistingPatients] = useState<any[]>([]);
   const [sensors, setSensors] = useState<any[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Form States
   const [patientName, setPatientName] = useState('');
@@ -103,10 +106,27 @@ export default function Complaints() {
     fetchData();
   };
 
-  const filteredComplaints = complaints.filter(c => 
-    c.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (c.serial_no && c.serial_no.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const downloadExcel = () => {
+    let filtered = complaints;
+    if (startDate) filtered = filtered.filter(c => new Date(c.created_at) >= new Date(startDate));
+    if (endDate) filtered = filtered.filter(c => new Date(c.created_at) <= new Date(endDate));
+    if (filtered.length === 0) return alert("NO COMPLAINTS FOUND IN THIS DATE RANGE.");
+
+    const headers = "Date,Patient,Phone,Area,Sensor,Serial No,Error Code,Days,Qty,Pic,Step 1,Step 2,Step 3,Step 4\n";
+    const rows = filtered.map(c => `"${new Date(c.created_at).toLocaleDateString()}","${c.patient_name}","${c.phone || ''}","${c.area || ''}","${c.sensor_name}","${c.serial_no || ''}","${c.error_code}","${c.working_days}","${c.qty}","${c.sensor_pic}","${c.step_1}","${c.step_2}","${c.step_3}","${c.step_4}"`).join("\n");
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Complaints_Report_${startDate || 'Start'}_to_${endDate || 'End'}.csv`;
+    a.click();
+  };
+
+  const filteredComplaints = complaints.filter(c => {
+    const matchesSearch = c.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || (c.serial_no && c.serial_no.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesMonth = selectedMonth ? c.created_at?.startsWith(selectedMonth) : true;
+    return matchesSearch && matchesMonth;
+  });
 
   // LOGIC: If all steps are YES, it goes to Resolved Sheet
   const activeComplaints = filteredComplaints.filter(c => !(c.step_1 === 'YES' && c.step_2 === 'YES' && c.step_3 === 'YES' && c.step_4 === 'YES'));
@@ -122,6 +142,7 @@ export default function Complaints() {
         <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="p-4 text-sm font-black text-gray-800">Date</th>
               <th className="p-4 text-sm font-black text-gray-800">Patient Details</th>
               <th className="p-4 text-sm font-black text-gray-800">Sensor Info</th>
               <th className="p-4 text-sm font-black text-gray-800 text-center">1: PT➔SWA</th>
@@ -136,6 +157,7 @@ export default function Complaints() {
             ) : (
               data.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-orange-50/50 transition-colors">
+                  <td className="p-4 font-bold text-gray-600">{new Date(c.created_at).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="font-black text-gray-900">{c.patient_name}</div>
                     <div className="text-xs font-bold text-gray-500 mt-0.5">{c.phone}</div>
@@ -232,8 +254,8 @@ export default function Complaints() {
 
             <div className="flex gap-4">
               <div className="flex flex-col gap-2 w-1/2">
-                <label className="font-black text-gray-700 text-sm">Serial No</label>
-                <input type="text" required placeholder="SN-12345" value={serialNo} onChange={(e) => setSerialNo(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+                <label className="font-black text-gray-700 text-sm">Serial No <span className="text-gray-400 font-bold">(Optional)</span></label>
+                <input type="text" placeholder="SN-12345" value={serialNo} onChange={(e) => setSerialNo(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
               <div className="flex flex-col gap-2 w-1/2">
                 <label className="font-black text-gray-700 text-sm">Error Code</label>
@@ -268,6 +290,24 @@ export default function Complaints() {
         {/* Status Tables */}
         <div className="col-span-1 xl:col-span-2">
           
+          <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <label className="text-sm font-black text-gray-600 whitespace-nowrap">VIEW MONTH:</label>
+              <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="border border-gray-200 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-50 uppercase w-full md:w-auto" />
+              <button type="button" onClick={() => setSelectedMonth('')} className="text-xs font-bold text-blue-600 hover:underline whitespace-nowrap">CLEAR</button>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <label className="text-sm font-black text-gray-600">START:</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm font-bold text-gray-900 uppercase" />
+              <label className="text-sm font-black text-gray-600">END:</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-sm font-bold text-gray-900 uppercase" />
+              <button type="button" onClick={downloadExcel} className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs py-2.5 px-4 rounded-lg transition-colors shadow-sm uppercase ml-auto md:ml-0">
+                EXPORT EXCEL
+              </button>
+            </div>
+          </div>
+
           <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
             <input 

@@ -109,17 +109,17 @@ export default function CourierTracker() {
 
   const copyRowData = (c: any) => {
     const formatted = [
-      `PATIENT: ${c.patient_name}`,
+      `${c.patient_name}`,
       `PHONE: ${c.patient_phone || 'N/A'}`,
       `EMAIL: ${c.patient_email || 'N/A'}`,
       `AREA: ${c.patient_area || 'N/A'}`,
       `SENT FROM: ${c.sent_from || 'N/A'}`,
-      `TRACKING / SERIAL NO: ${c.tracking_number || 'N/A'}`,
+      `*TRACKING NO:* ${c.tracking_number || 'N/A'}`,
       `COURIER: ${c.courier_company || 'N/A'}`,
       `DISPATCH DATE: ${c.dispatch_date || 'N/A'}`,
       `DELIVERED DATE: ${c.delivered_date || 'N/A'}`,
-      `STATUS: ${c.status || 'N/A'}`
-    ].join('\n');
+      `*STATUS:* ${c.status || 'N/A'}`
+    ].join('\n').toUpperCase();
 
     navigator.clipboard.writeText(formatted);
     setCopiedId(c.id);
@@ -290,14 +290,14 @@ export default function CourierTracker() {
               <label className="font-black text-gray-700 text-sm uppercase">Sent From</label>
               <select required value={sentFrom} onChange={(e) => setSentFrom(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
                 <option value="" disabled className="uppercase font-bold">SELECT ORIGIN...</option>
-                <option value="Swasthyam" className="uppercase font-bold">SWASTHYAM</option>
-                <option value="endo" className="uppercase font-bold">ENDO</option>
+                <option value="SWASTHYAM HEALTHCARE" className="uppercase font-bold">SWASTHYAM HEALTHCARE</option>
+                <option value="ENDO KIDZ" className="uppercase font-bold">ENDO KIDZ</option>
                 <option value="Samyak" className="uppercase font-bold">SAMYAK</option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="font-black text-gray-700 text-sm uppercase">Tracking / Serial Number</label>
+              <label className="font-black text-gray-700 text-sm uppercase">TRACKING NUMBER</label>
               <input type="text" required placeholder="TRK-0000-0000" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 font-black focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
             
@@ -305,6 +305,7 @@ export default function CourierTracker() {
               <label className="font-black text-gray-700 text-sm uppercase">Courier Company</label>
               <input list="companies" required placeholder="E.G. TRACKON" value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="companies">
+                <option value="SHREE ANJANI" />
                 <option value="TRACKON" />
                 <option value="INDIA POST" />
                 <option value="FEDEX" />

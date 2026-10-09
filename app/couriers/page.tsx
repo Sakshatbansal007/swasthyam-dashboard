@@ -41,14 +41,14 @@ export default function CourierTracker() {
   }
 
   const handlePatientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const typedName = e.target.value;
+    const typedName = e.target.value.toUpperCase();
     setPatientName(typedName);
     
-    const foundPatient = existingPatients.find(p => p.name.toLowerCase() === typedName.toLowerCase());
+    const foundPatient = existingPatients.find(p => p.name.toUpperCase() === typedName);
     if (foundPatient) {
-      setPatientPhone(foundPatient.phone || '');
-      setPatientEmail(foundPatient.email || '');
-      setPatientArea(foundPatient.area || '');
+      setPatientPhone((foundPatient.phone || '').toUpperCase());
+      setPatientEmail((foundPatient.email || '').toUpperCase());
+      setPatientArea((foundPatient.area || '').toUpperCase());
     } else {
       setPatientPhone('');
       setPatientEmail('');
@@ -60,31 +60,38 @@ export default function CourierTracker() {
     e.preventDefault();
     setStatusMessage('SAVING...');
 
+    const upperTracking = trackingNumber.trim().toUpperCase();
     // Strict duplicate check on tracking / serial number
-    const trimmedTracking = trackingNumber.trim().toLowerCase();
     const isDuplicate = couriers.some(
-      (c) => c.tracking_number && c.tracking_number.trim().toLowerCase() === trimmedTracking
+      (c) => c.tracking_number && c.tracking_number.trim().toUpperCase() === upperTracking
     );
     if (isDuplicate) {
       return setStatusMessage('ERROR: THIS SERIAL / TRACKING NUMBER HAS ALREADY BEEN RECORDED.');
     }
 
-    let patientExists = existingPatients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
+    const upperName = patientName.trim().toUpperCase();
+    const upperPhone = patientPhone.trim().toUpperCase();
+    const upperEmail = patientEmail.trim().toUpperCase();
+    const upperArea = patientArea.trim().toUpperCase();
+    const upperSentFrom = sentFrom.trim().toUpperCase();
+    const upperCourier = courierCompany.trim().toUpperCase();
+
+    let patientExists = existingPatients.find(p => p.name.toUpperCase() === upperName);
     if (!patientExists) {
-      const { data: newP, error: pErr } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail, area: patientArea }]).select().single();
+      const { data: newP, error: pErr } = await supabase.from('patients').insert([{ name: upperName, phone: upperPhone, email: upperEmail, area: upperArea }]).select().single();
       if (!pErr && newP) setExistingPatients([...existingPatients, newP]);
-    } else if (patientExists.phone !== patientPhone || patientExists.email !== patientEmail || patientExists.area !== patientArea) {
-      await supabase.from('patients').update({ phone: patientPhone, email: patientEmail, area: patientArea }).eq('id', patientExists.id);
+    } else if (patientExists.phone !== upperPhone || patientExists.email !== upperEmail || patientExists.area !== upperArea) {
+      await supabase.from('patients').update({ phone: upperPhone, email: upperEmail, area: upperArea }).eq('id', patientExists.id);
     }
 
     const { error } = await supabase.from('couriers').insert([{ 
-      patient_name: patientName, 
-      patient_phone: patientPhone, 
-      patient_email: patientEmail,
-      patient_area: patientArea,
-      sent_from: sentFrom, 
-      tracking_number: trackingNumber.trim(), 
-      courier_company: courierCompany, 
+      patient_name: upperName, 
+      patient_phone: upperPhone, 
+      patient_email: upperEmail,
+      patient_area: upperArea,
+      sent_from: upperSentFrom, 
+      tracking_number: upperTracking, 
+      courier_company: upperCourier, 
       dispatch_date: dispatchDate, 
       status: 'In Transit'
     }]);
@@ -111,21 +118,48 @@ export default function CourierTracker() {
     fetchCouriers();
   };
 
-  const copyRowData = (c: any) => {
+  const copyRowData = async (c: any) => {
+    const pName = (c.patient_name || '').toUpperCase();
     const formatted = [
-      `${c.patient_name}`,
-      `PHONE: ${c.patient_phone || 'N/A'}`,
-      `EMAIL: ${c.patient_email || 'N/A'}`,
-      `AREA: ${c.patient_area || 'N/A'}`,
-      `SENT FROM: ${c.sent_from || 'N/A'}`,
-      `*TRACKING NO:* ${c.tracking_number || 'N/A'}`,
-      `COURIER: ${c.courier_company || 'N/A'}`,
-      `DISPATCH DATE: ${c.dispatch_date || 'N/A'}`,
-      `DELIVERED DATE: ${c.delivered_date || 'N/A'}`,
-      `*STATUS:* ${c.status || 'N/A'}`
-    ].join('\n').toUpperCase();
+      `*${pName}*`,
+      `PHONE: ${(c.patient_phone || 'N/A').toUpperCase()}`,
+      `EMAIL: ${(c.patient_email || 'N/A').toUpperCase()}`,
+      `AREA: ${(c.patient_area || 'N/A').toUpperCase()}`,
+      `SENT FROM: ${(c.sent_from || 'N/A').toUpperCase()}`,
+      `*TRACKING NO:* ${(c.tracking_number || 'N/A').toUpperCase()}`,
+      `COURIER: ${(c.courier_company || 'N/A').toUpperCase()}`,
+      `DISPATCH DATE: ${(c.dispatch_date || 'N/A').toUpperCase()}`,
+      `DELIVERED DATE: ${(c.delivered_date || 'N/A').toUpperCase()}`,
+      `*STATUS:* ${(c.status || 'N/A').toUpperCase()}`
+    ].join('\n');
 
-    navigator.clipboard.writeText(formatted);
+    const htmlFormatted = [
+      `<b>${pName}</b>`,
+      `PHONE: ${(c.patient_phone || 'N/A').toUpperCase()}`,
+      `EMAIL: ${(c.patient_email || 'N/A').toUpperCase()}`,
+      `AREA: ${(c.patient_area || 'N/A').toUpperCase()}`,
+      `SENT FROM: ${(c.sent_from || 'N/A').toUpperCase()}`,
+      `<b>TRACKING NO:</b> ${(c.tracking_number || 'N/A').toUpperCase()}`,
+      `COURIER: ${(c.courier_company || 'N/A').toUpperCase()}`,
+      `DISPATCH DATE: ${(c.dispatch_date || 'N/A').toUpperCase()}`,
+      `DELIVERED DATE: ${(c.delivered_date || 'N/A').toUpperCase()}`,
+      `<b>STATUS:</b> ${(c.status || 'N/A').toUpperCase()}`
+    ].join('<br/>');
+
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+        const item = new ClipboardItem({
+          'text/plain': new Blob([formatted], { type: 'text/plain' }),
+          'text/html': new Blob([htmlFormatted], { type: 'text/html' })
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(formatted);
+      }
+    } catch {
+      await navigator.clipboard.writeText(formatted);
+    }
+
     setCopiedId(c.id);
     setTimeout(() => setCopiedId(null), 2500);
   };
@@ -270,8 +304,11 @@ export default function CourierTracker() {
           <p className="text-gray-500 text-base font-bold">Log new consignments and view ongoing logistics and deliveries.</p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex-wrap">
           <span className="text-sm font-black text-gray-500 uppercase tracking-wider ml-2">Quick Track:</span>
+          <a href="https://www.shreeanjanicourier.com/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-black text-white bg-[#e65100] hover:bg-orange-700 py-2 px-4 rounded-lg transition-colors uppercase">
+            Shree Anjani <ExternalLink className="w-4 h-4" />
+          </a>
           <a href="https://trackon.in/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-black text-white bg-[#e3000f] hover:bg-red-700 py-2 px-4 rounded-lg transition-colors uppercase">
             Trackon <ExternalLink className="w-4 h-4" />
           </a>
@@ -297,37 +334,37 @@ export default function CourierTracker() {
 
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Phone</label>
-              <input type="text" required placeholder="+91 9876543210" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="+91 9876543210" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Area</label>
-              <input type="text" required placeholder="E.G. SOUTH SIDE" value={patientArea} onChange={(e) => setPatientArea(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="E.G. SOUTH SIDE" value={patientArea} onChange={(e) => setPatientArea(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Email <span className="text-gray-400 font-bold">(Optional)</span></label>
-              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Sent From</label>
-              <select required value={sentFrom} onChange={(e) => setSentFrom(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
+              <select required value={sentFrom} onChange={(e) => setSentFrom(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white uppercase font-bold">
                 <option value="" disabled className="uppercase font-bold">SELECT ORIGIN...</option>
                 <option value="SWASTHYAM HEALTHCARE" className="uppercase font-bold">SWASTHYAM HEALTHCARE</option>
                 <option value="ENDO KIDZ" className="uppercase font-bold">ENDO KIDZ</option>
-                <option value="Samyak" className="uppercase font-bold">SAMYAK</option>
+                <option value="SAMYAK" className="uppercase font-bold">SAMYAK</option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">TRACKING NUMBER</label>
-              <input type="text" required placeholder="TRK-0000-0000" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 font-black focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="TRK-0000-0000" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 font-black focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
             
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Courier Company</label>
-              <input list="companies" required placeholder="E.G. TRACKON" value={courierCompany} onChange={(e) => setCourierCompany(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input list="companies" required placeholder="E.G. TRACKON" value={courierCompany} onChange={(e) => setCourierCompany(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="companies">
                 <option value="SHREE ANJANI" />
                 <option value="TRACKON" />
@@ -385,7 +422,7 @@ export default function CourierTracker() {
           type="text" 
           placeholder="SEARCH ACTIVE COURIER LISTS, PATIENTS, SERIAL OR TRACKING CODES..." 
           value={searchQuery} 
-          onChange={(e) => setSearchQuery(e.target.value)} 
+          onChange={(e) => setSearchQuery(e.target.value.toUpperCase())} 
           className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-300 text-gray-900 placeholder-gray-500 text-sm font-black focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm transition-all bg-white uppercase" 
         />
       </div>

@@ -61,17 +61,22 @@ export default function PatientsDirectory() {
     e.preventDefault();
     setStatusMessage('SAVING INQUIRY...');
 
+    const upperName = name.trim().toUpperCase();
+    const upperPhone = phone.trim().toUpperCase();
+    const upperArea = area.trim().toUpperCase();
+    const upperEmail = email.trim().toUpperCase();
+
     // Check if patient already exists to prevent manual duplicates
-    const exists = patients.find(p => p.name.toLowerCase() === name.toLowerCase());
+    const exists = patients.find(p => (p.name || '').toUpperCase() === upperName);
     if (exists) {
       return setStatusMessage('ERROR: A PATIENT WITH THIS NAME ALREADY EXISTS.');
     }
 
     const { error } = await supabase.from('patients').insert([{ 
-      name: name, 
-      phone: phone, 
-      email: email, 
-      area: area 
+      name: upperName, 
+      phone: upperPhone, 
+      email: upperEmail, 
+      area: upperArea 
     }]);
 
     if (error) {
@@ -84,7 +89,7 @@ export default function PatientsDirectory() {
   };
 
   const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (p.name || '').toUpperCase().includes(searchQuery.toUpperCase()) || 
     (p.phone && p.phone.includes(searchQuery))
   );
 
@@ -116,25 +121,25 @@ export default function PatientsDirectory() {
             
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Patient Name</label>
-              <input type="text" required placeholder="E.G. JOHN DOE" value={name} onChange={(e) => setName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="E.G. JOHN DOE" value={name} onChange={(e) => setName(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Phone Number</label>
-              <input type="text" required placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Area / City</label>
-              <input type="text" required placeholder="E.G. SOUTH SIDE" value={area} onChange={(e) => setArea(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="text" required placeholder="E.G. SOUTH SIDE" value={area} onChange={(e) => setArea(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Email <span className="text-gray-400 font-bold">(Optional)</span></label>
-              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={email} onChange={(e) => setEmail(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={email} onChange={(e) => setEmail(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
             
-            <button type="submit" className="bg-[#0077b6] text-white font-black text-base py-4 mt-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            <button type="submit" className="bg-[#0077b6] text-white font-black text-base py-4 mt-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm uppercase">
               SAVE TO DATABASE
             </button>
             {statusMessage && <div className={`p-4 rounded-lg flex items-center gap-2 text-sm font-black ${statusMessage.includes('ERROR') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}><CheckCircle2 className="w-5 h-5"/> {statusMessage}</div>}
@@ -147,7 +152,7 @@ export default function PatientsDirectory() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input 
               type="text" placeholder="SEARCH ALL PATIENTS BY NAME OR PHONE..." 
-              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} 
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value.toUpperCase())} 
               className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 text-sm font-bold focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-50 shadow-sm transition-all uppercase" 
             />
           </div>

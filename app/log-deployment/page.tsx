@@ -77,15 +77,15 @@ export default function LogDeployment() {
   }, [category, selectedProduct, quantity, weeklyDose, products]);
 
   const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const typedName = e.target.value;
+    const typedName = e.target.value.toUpperCase();
     setPatientName(typedName);
 
-    const foundPatient = existingPatients.find(p => p.name.toLowerCase() === typedName.toLowerCase());
+    const foundPatient = existingPatients.find(p => (p.name || '').toUpperCase() === typedName);
     
     if (foundPatient) {
-      setPatientPhone(foundPatient.phone || '');
-      setPatientEmail(foundPatient.email || ''); 
-      setArea(foundPatient.area || '');
+      setPatientPhone((foundPatient.phone || '').toUpperCase());
+      setPatientEmail((foundPatient.email || '').toUpperCase()); 
+      setArea((foundPatient.area || '').toUpperCase());
       
       const { data: pastDeploys } = await supabase
         .from('injection_deployments')
@@ -96,7 +96,7 @@ export default function LogDeployment() {
 
       if (pastDeploys && pastDeploys.length > 0) {
         if ((pastDeploys[0] as any).doctors) {
-          setDoctorName((pastDeploys[0] as any).doctors.name);
+          setDoctorName(((pastDeploys[0] as any).doctors.name || '').toUpperCase());
         }
         if ((pastDeploys[0] as any).weekly_dose) {
           setWeeklyDose(String((pastDeploys[0] as any).weekly_dose));
@@ -118,16 +118,23 @@ export default function LogDeployment() {
     let daysToAdd = 0;
     let finalDoctorId = null;
 
+    const upperName = patientName.trim().toUpperCase();
+    const upperPhone = patientPhone.trim().toUpperCase();
+    const upperEmail = patientEmail.trim().toUpperCase();
+    const upperArea = area.trim().toUpperCase();
+    const upperDoc = doctorName.trim().toUpperCase();
+    const upperSerial = serialNumber.trim().toUpperCase();
+
     if (category === 'injection') {
       if (!weeklyDose) return setStatusMessage('ERROR: WEEKLY DOSE REQUIRED.');
       if (!doctorName) return setStatusMessage('ERROR: REFERRING DOCTOR REQUIRED FOR INJECTIONS.');
       
-      const existingDoc = doctors.find(d => d.name.toLowerCase() === doctorName.toLowerCase());
+      const existingDoc = doctors.find(d => (d.name || '').toUpperCase() === upperDoc);
       
       if (existingDoc) {
         finalDoctorId = existingDoc.id;
       } else {
-        const { data: newDoc, error: docError } = await supabase.from('doctors').insert([{ name: doctorName }]).select().single();
+        const { data: newDoc, error: docError } = await supabase.from('doctors').insert([{ name: upperDoc }]).select().single();
         if (docError) return setStatusMessage('ERROR SAVING NEW DOCTOR.');
         finalDoctorId = newDoc.id;
         setDoctors([...doctors, newDoc]); 
@@ -144,15 +151,15 @@ export default function LogDeployment() {
     const dueDate = dateObj.toISOString().split('T')[0];
 
     let patientId;
-    const existingPatient = existingPatients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
+    const existingPatient = existingPatients.find(p => (p.name || '').toUpperCase() === upperName);
 
     if (existingPatient) {
       patientId = existingPatient.id;
-      if (existingPatient.phone !== patientPhone || existingPatient.email !== patientEmail || existingPatient.area !== area) {
-        await supabase.from('patients').update({ phone: patientPhone, email: patientEmail, area }).eq('id', patientId);
+      if (existingPatient.phone !== upperPhone || existingPatient.email !== upperEmail || existingPatient.area !== upperArea) {
+        await supabase.from('patients').update({ phone: upperPhone, email: upperEmail, area: upperArea }).eq('id', patientId);
       }
     } else {
-      const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: patientName, phone: patientPhone, email: patientEmail, area }]).select().single();
+      const { data: newPatient, error: patientError } = await supabase.from('patients').insert([{ name: upperName, phone: upperPhone, email: upperEmail, area: upperArea }]).select().single();
       if (patientError) return setStatusMessage('ERROR SAVING PATIENT.');
       patientId = newPatient.id;
       setExistingPatients([...existingPatients, newPatient]);
@@ -228,23 +235,23 @@ export default function LogDeployment() {
             <div className="flex gap-4">
               <div className="flex flex-col gap-2 w-1/2">
                 <label className="font-black text-gray-700 text-sm">Patient Phone</label>
-                <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+                <input type="text" required placeholder="+1 (555) 234-5678" value={patientPhone} onChange={(e) => setPatientPhone(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
               <div className="flex flex-col gap-2 w-1/2">
                 <label className="font-black text-gray-700 text-sm">Patient Area</label>
-                <input type="text" required placeholder="E.G. DOWNTOWN" value={area} onChange={(e) => setArea(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+                <input type="text" required placeholder="E.G. DOWNTOWN" value={area} onChange={(e) => setArea(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Patient Email <span className="text-gray-400 font-bold">(Optional)</span></label>
-              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input type="email" placeholder="PATIENT@EXAMPLE.COM" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
             </div>
             
             {category === 'injection' && (
               <div className="flex flex-col gap-2">
                 <label className="font-black text-gray-700 text-sm">Referring Doctor</label>
-                <input list="doctor-list" required placeholder="DR. SARAH JENKINS" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+                <input list="doctor-list" required placeholder="DR. SARAH JENKINS" value={doctorName} onChange={(e) => setDoctorName(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
                 <datalist id="doctor-list">{doctors.map(d => <option key={d.id} value={d.name} />)}</datalist>
               </div>
             )}
@@ -260,7 +267,7 @@ export default function LogDeployment() {
             {category === 'sensor' && (
               <div className="flex flex-col gap-2">
                 <label className="font-black text-gray-700 text-sm">Serial Number <span className="text-gray-400 font-bold">(Optional)</span></label>
-                <input type="text" placeholder="E.G. SN-12345" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+                <input type="text" placeholder="E.G. SN-12345" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               </div>
             )}
 

@@ -57,6 +57,39 @@ export default function PatientsDirectory() {
     }
   }
 
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
+      setPhone('');
+      setArea('');
+      setEmail('');
+      return;
+    }
+
+    let foundPatient = patients.find(p => (p.name || '').trim().toUpperCase() === cleanName);
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
+    if (foundPatient) {
+      if (foundPatient.phone != null) setPhone(String(foundPatient.phone).toUpperCase());
+      if (foundPatient.area != null) setArea(String(foundPatient.area).toUpperCase());
+      if (foundPatient.email != null) setEmail(String(foundPatient.email).toUpperCase());
+    }
+  };
+
+  const handleNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typedName = e.target.value.toUpperCase();
+    setName(typedName);
+    await autoFillPatient(typedName);
+  };
+
   const handleSaveInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage('SAVING INQUIRY...');
@@ -121,7 +154,12 @@ export default function PatientsDirectory() {
             
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Patient Name</label>
-              <input type="text" required placeholder="E.G. JOHN DOE" value={name} onChange={(e) => setName(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input list="patient-directory-list" type="text" required placeholder="E.G. JOHN DOE" value={name} onChange={handleNameChange} onBlur={() => autoFillPatient(name)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <datalist id="patient-directory-list">
+                {patients.map((p, i) => (
+                  <option key={i} value={p.name} />
+                ))}
+              </datalist>
             </div>
 
             <div className="flex flex-col gap-2">

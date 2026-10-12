@@ -40,20 +40,54 @@ export default function CourierTracker() {
     if (data) setExistingPatients(data);
   }
 
-  const handlePatientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const typedName = e.target.value.toUpperCase();
-    setPatientName(typedName);
-    
-    const foundPatient = existingPatients.find(p => p.name.toUpperCase() === typedName);
-    if (foundPatient) {
-      setPatientPhone((foundPatient.phone || '').toUpperCase());
-      setPatientEmail((foundPatient.email || '').toUpperCase());
-      setPatientArea((foundPatient.area || '').toUpperCase());
-    } else {
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
       setPatientPhone('');
       setPatientEmail('');
       setPatientArea('');
+      return;
     }
+
+    let foundPatient = existingPatients.find(p => (p.name || '').trim().toUpperCase() === cleanName);
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
+    if (foundPatient) {
+      if (foundPatient.phone != null) setPatientPhone(String(foundPatient.phone).toUpperCase());
+      if (foundPatient.email != null) setPatientEmail(String(foundPatient.email).toUpperCase());
+      if (foundPatient.area != null) setPatientArea(String(foundPatient.area).toUpperCase());
+    }
+
+    // Check past courier shipments for origin and company info
+    const { data: pastCourier } = await supabase
+      .from('couriers')
+      .select('sent_from, courier_company, patient_phone, patient_email, patient_area')
+      .ilike('patient_name', cleanName)
+      .order('dispatch_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pastCourier) {
+      if (pastCourier.sent_from != null) setSentFrom(String(pastCourier.sent_from).toUpperCase());
+      if (pastCourier.courier_company != null) setCourierCompany(String(pastCourier.courier_company).toUpperCase());
+      if (!foundPatient?.phone && pastCourier.patient_phone != null) setPatientPhone(String(pastCourier.patient_phone).toUpperCase());
+      if (!foundPatient?.email && pastCourier.patient_email != null) setPatientEmail(String(pastCourier.patient_email).toUpperCase());
+      if (!foundPatient?.area && pastCourier.patient_area != null) setPatientArea(String(pastCourier.patient_area).toUpperCase());
+    }
+  };
+
+  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typedName = e.target.value.toUpperCase();
+    setPatientName(typedName);
+    await autoFillPatient(typedName);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +110,7 @@ export default function CourierTracker() {
     const upperSentFrom = sentFrom.trim().toUpperCase();
     const upperCourier = courierCompany.trim().toUpperCase();
 
-    let patientExists = existingPatients.find(p => p.name.toUpperCase() === upperName);
+    let patientExists = existingPatients.find(p => (p.name || '').toUpperCase() === upperName);
     if (!patientExists) {
       const { data: newP, error: pErr } = await supabase.from('patients').insert([{ name: upperName, phone: upperPhone, email: upperEmail, area: upperArea }]).select().single();
       if (!pErr && newP) setExistingPatients([...existingPatients, newP]);
@@ -119,31 +153,31 @@ export default function CourierTracker() {
   };
 
   const copyRowData = async (c: any) => {
-    const pName = (c.patient_name || '').toUpperCase();
+    const pName = String(c.patient_name || '').toUpperCase();
     const formatted = [
       `*${pName}*`,
-      `PHONE: ${(c.patient_phone || 'N/A').toUpperCase()}`,
-      `EMAIL: ${(c.patient_email || 'N/A').toUpperCase()}`,
-      `AREA: ${(c.patient_area || 'N/A').toUpperCase()}`,
-      `SENT FROM: ${(c.sent_from || 'N/A').toUpperCase()}`,
-      `*TRACKING NO:* ${(c.tracking_number || 'N/A').toUpperCase()}`,
-      `COURIER: ${(c.courier_company || 'N/A').toUpperCase()}`,
-      `DISPATCH DATE: ${(c.dispatch_date || 'N/A').toUpperCase()}`,
-      `DELIVERED DATE: ${(c.delivered_date || 'N/A').toUpperCase()}`,
-      `*STATUS:* ${(c.status || 'N/A').toUpperCase()}`
+      `PHONE: ${String(c.patient_phone || 'N/A').toUpperCase()}`,
+      `EMAIL: ${String(c.patient_email || 'N/A').toUpperCase()}`,
+      `AREA: ${String(c.patient_area || 'N/A').toUpperCase()}`,
+      `SENT FROM: ${String(c.sent_from || 'N/A').toUpperCase()}`,
+      `*TRACKING NO:* ${String(c.tracking_number || 'N/A').toUpperCase()}`,
+      `COURIER: ${String(c.courier_company || 'N/A').toUpperCase()}`,
+      `DISPATCH DATE: ${String(c.dispatch_date || 'N/A').toUpperCase()}`,
+      `DELIVERED DATE: ${String(c.delivered_date || 'N/A').toUpperCase()}`,
+      `*STATUS:* ${String(c.status || 'N/A').toUpperCase()}`
     ].join('\n');
 
     const htmlFormatted = [
       `<b>${pName}</b>`,
-      `PHONE: ${(c.patient_phone || 'N/A').toUpperCase()}`,
-      `EMAIL: ${(c.patient_email || 'N/A').toUpperCase()}`,
-      `AREA: ${(c.patient_area || 'N/A').toUpperCase()}`,
-      `SENT FROM: ${(c.sent_from || 'N/A').toUpperCase()}`,
-      `<b>TRACKING NO:</b> ${(c.tracking_number || 'N/A').toUpperCase()}`,
-      `COURIER: ${(c.courier_company || 'N/A').toUpperCase()}`,
-      `DISPATCH DATE: ${(c.dispatch_date || 'N/A').toUpperCase()}`,
-      `DELIVERED DATE: ${(c.delivered_date || 'N/A').toUpperCase()}`,
-      `<b>STATUS:</b> ${(c.status || 'N/A').toUpperCase()}`
+      `PHONE: ${String(c.patient_phone || 'N/A').toUpperCase()}`,
+      `EMAIL: ${String(c.patient_email || 'N/A').toUpperCase()}`,
+      `AREA: ${String(c.patient_area || 'N/A').toUpperCase()}`,
+      `SENT FROM: ${String(c.sent_from || 'N/A').toUpperCase()}`,
+      `<b>TRACKING NO:</b> ${String(c.tracking_number || 'N/A').toUpperCase()}`,
+      `COURIER: ${String(c.courier_company || 'N/A').toUpperCase()}`,
+      `DISPATCH DATE: ${String(c.dispatch_date || 'N/A').toUpperCase()}`,
+      `DELIVERED DATE: ${String(c.delivered_date || 'N/A').toUpperCase()}`,
+      `<b>STATUS:</b> ${String(c.status || 'N/A').toUpperCase()}`
     ].join('<br/>');
 
     try {
@@ -306,7 +340,7 @@ export default function CourierTracker() {
 
         <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex-wrap">
           <span className="text-sm font-black text-gray-500 uppercase tracking-wider ml-2">Quick Track:</span>
-          <a href="https://www.shreeanjanicourier.com/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-black text-white bg-[#e65100] hover:bg-orange-700 py-2 px-4 rounded-lg transition-colors uppercase">
+          <a href="https://shreeanjani.co.in/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-black text-white bg-[#e65100] hover:bg-orange-700 py-2 px-4 rounded-lg transition-colors uppercase">
             Shree Anjani <ExternalLink className="w-4 h-4" />
           </a>
           <a href="https://trackon.in/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-black text-white bg-[#e3000f] hover:bg-red-700 py-2 px-4 rounded-lg transition-colors uppercase">
@@ -328,7 +362,7 @@ export default function CourierTracker() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="font-black text-gray-700 text-sm uppercase">Patient Name</label>
-              <input list="patient-list" required placeholder="E.G. HASSAN MILLER" value={patientName} onChange={handlePatientNameChange} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input list="patient-list" required placeholder="E.G. HASSAN MILLER" value={patientName} onChange={handlePatientNameChange} onBlur={() => autoFillPatient(patientName)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 

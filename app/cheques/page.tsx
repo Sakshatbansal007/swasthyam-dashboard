@@ -34,6 +34,43 @@ export default function Cheques() {
     if (pData) setExistingPatients(pData);
   }
 
+  const autoFillCheque = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
+      setBankName('');
+      setDr('');
+      setCr('');
+      return;
+    }
+
+    // Check recent cheques for this name
+    let pastCheque = cheques.find(c => (c.name || '').trim().toUpperCase() === cleanName);
+    
+    // If not found in local cheques, query backend cheques table
+    if (!pastCheque) {
+      const { data: dbCheque } = await supabase
+        .from('cheques')
+        .select('*')
+        .ilike('name', cleanName)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (dbCheque) pastCheque = dbCheque;
+    }
+
+    if (pastCheque) {
+      if (pastCheque.bank_name != null) setBankName(String(pastCheque.bank_name).toUpperCase());
+      if (pastCheque.dr != null) setDr(String(pastCheque.dr).toUpperCase());
+      if (pastCheque.cr != null) setCr(String(pastCheque.cr).toUpperCase());
+    }
+  };
+
+  const handleNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typedName = e.target.value.toUpperCase();
+    setName(typedName);
+    await autoFillCheque(typedName);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage('SAVING CHEQUE INFO...');
@@ -192,8 +229,10 @@ export default function Cheques() {
 
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm uppercase">Name</label>
-              <input list="patient-list" required placeholder="E.G. JANE DOE" value={name} onChange={(e) => setName(e.target.value.toUpperCase())} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
-              <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
+              <input list="patient-list" required placeholder="E.G. JANE DOE" value={name} onChange={handleNameChange} onBlur={() => autoFillCheque(name)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <datalist id="patient-list">
+                {Array.from(new Set([...existingPatients.map(p => p.name), ...cheques.map(c => c.name)])).filter(Boolean).map((n, i) => <option key={i} value={n} />)}
+              </datalist>
             </div>
 
             <div className="flex flex-col gap-2">

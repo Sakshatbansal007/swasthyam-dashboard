@@ -33,29 +33,71 @@ export default function AddressArchive() {
     if (data) setExistingPatients(data);
   }
 
-  const handlePatientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
+      if (!editingId) {
+        setPhoneNumber('');
+        setArea('');
+        setAddressText('');
+      }
+      return;
+    }
+
+    let foundPatient = existingPatients.find(p => (p.name || '').trim().toUpperCase() === cleanName);
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
+    if (foundPatient) {
+      if (foundPatient.phone != null) setPhoneNumber(String(foundPatient.phone).toUpperCase());
+      if (foundPatient.area != null) setArea(String(foundPatient.area).toUpperCase());
+    }
+
+    // Fetch previous address text from patient_addresses
+    let addrRecord = addressRecords.find(a => (a.patient_name || '').trim().toUpperCase() === cleanName);
+    if (!addrRecord) {
+      const { data: dbAddr } = await supabase
+        .from('patient_addresses')
+        .select('*')
+        .ilike('patient_name', cleanName)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (dbAddr) addrRecord = dbAddr;
+    }
+
+    if (addrRecord) {
+      if (!foundPatient?.phone && addrRecord.phone_number != null) {
+        setPhoneNumber(String(addrRecord.phone_number).toUpperCase());
+      }
+      if (addrRecord.address_text != null) {
+        setAddressText(String(addrRecord.address_text).toUpperCase());
+      }
+    }
+  };
+
+  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const typedName = e.target.value.toUpperCase();
     setPatientName(typedName);
-
-    const foundPatient = existingPatients.find(p => p.name.toUpperCase() === typedName);
-    if (foundPatient) {
-      setPhoneNumber((foundPatient.phone || '').toUpperCase());
-      setArea((foundPatient.area || '').toUpperCase());
-    } else {
-      setPhoneNumber('');
-      setArea('');
-    }
+    await autoFillPatient(typedName);
   };
 
   const startEdit = (record: any) => {
     setEditingId(record.id);
-    const upperName = (record.patient_name || '').toUpperCase();
+    const upperName = String(record.patient_name || '').toUpperCase();
     setPatientName(upperName);
-    setPhoneNumber((record.phone_number || '').toUpperCase());
+    setPhoneNumber(String(record.phone_number || '').toUpperCase());
     
-    const foundPatient = existingPatients.find(p => p.name.toUpperCase() === upperName);
-    setArea((foundPatient?.area || '').toUpperCase());
-    setAddressText((record.address_text || '').toUpperCase());
+    const foundPatient = existingPatients.find(p => (p.name || '').toUpperCase() === upperName);
+    setArea(String(foundPatient?.area || '').toUpperCase());
+    setAddressText(String(record.address_text || '').toUpperCase());
     setMessage('');
 
     window.scrollTo({ top: 100, behavior: 'smooth' });
@@ -83,7 +125,7 @@ export default function AddressArchive() {
     const cleanAddress = addressText.trim().toUpperCase();
 
     try {
-      let patientExists = existingPatients.find(p => p.name.toUpperCase() === cleanName);
+      let patientExists = existingPatients.find(p => (p.name || '').toUpperCase() === cleanName);
       if (!patientExists) {
         const { data: newP, error: pErr } = await supabase
           .from('patients')
@@ -131,9 +173,9 @@ export default function AddressArchive() {
   };
 
   const copyToClipboard = async (record: any) => {
-    const name = (record.patient_name || '').trim().toUpperCase();
-    const phone = (record.phone_number || '').trim().toUpperCase();
-    let addr = (record.address_text || '').trim().toUpperCase();
+    const name = String(record.patient_name || '').trim().toUpperCase();
+    const phone = String(record.phone_number || '').trim().toUpperCase();
+    let addr = String(record.address_text || '').trim().toUpperCase();
 
     // If the address text already starts with the patient name, remove the duplicate prefix
     let restAddr = addr;
@@ -230,6 +272,7 @@ export default function AddressArchive() {
               <input 
                 list="patient-list" required placeholder="E.G. ARIA MONTGOMERY" 
                 value={patientName} onChange={handlePatientNameChange} 
+                onBlur={() => autoFillPatient(patientName)}
                 className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
               />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>

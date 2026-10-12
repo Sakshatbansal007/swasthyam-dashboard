@@ -58,20 +58,74 @@ export default function Complaints() {
     if (sData) setSensors(sData);
   }
 
-  const handlePatientNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const typedName = e.target.value.toUpperCase();
-    setPatientName(typedName);
-
-    const foundPatient = existingPatients.find(p => p.name.toUpperCase() === typedName);
-    if (foundPatient) {
-      setPatientPhone((foundPatient.phone || '').toUpperCase());
-      setPatientEmail((foundPatient.email || '').toUpperCase());
-      setArea((foundPatient.area || '').toUpperCase());
-    } else {
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
       setPatientPhone('');
       setPatientEmail('');
       setArea('');
+      return;
     }
+
+    let foundPatient = existingPatients.find(p => (p.name || '').trim().toUpperCase() === cleanName);
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
+    if (foundPatient) {
+      if (foundPatient.phone != null) setPatientPhone(String(foundPatient.phone).toUpperCase());
+      if (foundPatient.email != null) setPatientEmail(String(foundPatient.email).toUpperCase());
+      if (foundPatient.area != null) setArea(String(foundPatient.area).toUpperCase());
+
+      // Query past sensor deployments for deployed sensor and serial number
+      const { data: pastDeploys } = await supabase
+        .from('sensor_deployments')
+        .select('serial_number, sensors(name)')
+        .eq('patient_id', foundPatient.id)
+        .order('deployment_date', { ascending: false })
+        .limit(1);
+
+      if (pastDeploys && pastDeploys.length > 0) {
+        const pastD = pastDeploys[0] as any;
+        if (pastD.sensors?.name != null) {
+          setSensorName(String(pastD.sensors.name).toUpperCase());
+        }
+        if (pastD.serial_number != null) {
+          setSerialNo(String(pastD.serial_number).toUpperCase());
+        }
+      }
+    }
+
+    // Also check past complaints for this patient
+    const { data: pastComplaint } = await supabase
+      .from('complaints')
+      .select('*')
+      .ilike('patient_name', cleanName)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pastComplaint) {
+      if (!foundPatient?.phone && pastComplaint.phone != null) setPatientPhone(String(pastComplaint.phone).toUpperCase());
+      if (!foundPatient?.email && pastComplaint.email != null) setPatientEmail(String(pastComplaint.email).toUpperCase());
+      if (!foundPatient?.area && pastComplaint.area != null) setArea(String(pastComplaint.area).toUpperCase());
+      if (pastComplaint.sensor_name != null) setSensorName(String(pastComplaint.sensor_name).toUpperCase());
+      if (pastComplaint.serial_no != null) setSerialNo(String(pastComplaint.serial_no).toUpperCase());
+      if (pastComplaint.working_days != null) setWorkingDays(String(pastComplaint.working_days));
+      if (pastComplaint.error_code != null) setErrorCode(String(pastComplaint.error_code).toUpperCase());
+    }
+  };
+
+  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typedName = e.target.value.toUpperCase();
+    setPatientName(typedName);
+    await autoFillPatient(typedName);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +142,7 @@ export default function Complaints() {
     const upperPic = sensorPic.trim().toUpperCase();
 
     // Auto-save new patient if they don't exist
-    let patientExists = existingPatients.find(p => p.name.toUpperCase() === upperName);
+    let patientExists = existingPatients.find(p => (p.name || '').toUpperCase() === upperName);
     if (!patientExists) {
       const { data: newP, error: pErr } = await supabase.from('patients').insert([{ name: upperName, phone: upperPhone, email: upperEmail, area: upperArea }]).select().single();
       if (!pErr && newP) setExistingPatients([...existingPatients, newP]);
@@ -290,7 +344,7 @@ export default function Complaints() {
       // Auto-save patients to patients table in background
       for (const r of parsedImportRows) {
         if (r.patient_name) {
-          const found = existingPatients.find(p => p.name.toUpperCase() === r.patient_name);
+          const found = existingPatients.find(p => (p.name || '').toUpperCase() === r.patient_name);
           if (!found) {
             await supabase.from('patients').insert([{
               name: r.patient_name,
@@ -473,6 +527,7 @@ export default function Complaints() {
               <input 
                 list="patient-list" required placeholder="E.G. JANE DOE" 
                 value={patientName} onChange={handlePatientNameChange} 
+                onBlur={() => autoFillPatient(patientName)}
                 className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" 
               />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>

@@ -76,16 +76,29 @@ export default function LogDeployment() {
     }
   }, [category, selectedProduct, quantity, weeklyDose, products]);
 
-  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const typedName = e.target.value.toUpperCase();
-    setPatientName(typedName);
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
+      setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setDoctorName('');
+      return;
+    }
 
-    const foundPatient = existingPatients.find(p => (p.name || '').toUpperCase() === typedName);
+    let foundPatient = existingPatients.find(p => (p.name || '').trim().toUpperCase() === cleanName);
     
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
     if (foundPatient) {
-      setPatientPhone((foundPatient.phone || '').toUpperCase());
-      setPatientEmail((foundPatient.email || '').toUpperCase()); 
-      setArea((foundPatient.area || '').toUpperCase());
+      if (foundPatient.phone != null) setPatientPhone(String(foundPatient.phone).toUpperCase());
+      if (foundPatient.email != null) setPatientEmail(String(foundPatient.email).toUpperCase()); 
+      if (foundPatient.area != null) setArea(String(foundPatient.area).toUpperCase());
       
       const { data: pastDeploys } = await supabase
         .from('injection_deployments')
@@ -95,16 +108,20 @@ export default function LogDeployment() {
         .limit(1);
 
       if (pastDeploys && pastDeploys.length > 0) {
-        if ((pastDeploys[0] as any).doctors) {
-          setDoctorName(((pastDeploys[0] as any).doctors.name || '').toUpperCase());
+        if ((pastDeploys[0] as any).doctors?.name != null) {
+          setDoctorName(String((pastDeploys[0] as any).doctors.name).toUpperCase());
         }
-        if ((pastDeploys[0] as any).weekly_dose) {
+        if ((pastDeploys[0] as any).weekly_dose != null) {
           setWeeklyDose(String((pastDeploys[0] as any).weekly_dose));
         }
       }
-    } else {
-      setPatientPhone(''); setPatientEmail(''); setArea(''); setWeeklyDose(''); setDoctorName('');
     }
+  };
+
+  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typedName = e.target.value.toUpperCase();
+    setPatientName(typedName);
+    await autoFillPatient(typedName);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,7 +245,7 @@ export default function LogDeployment() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 text-sm font-bold">
             <div className="flex flex-col gap-2">
               <label className="font-black text-gray-700 text-sm">Patient Name</label>
-              <input list="patient-list" required placeholder="E.G. ELEANOR VANCE" value={patientName} onChange={handlePatientNameChange} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
+              <input list="patient-list" required placeholder="E.G. ELEANOR VANCE" value={patientName} onChange={handlePatientNameChange} onBlur={() => autoFillPatient(patientName)} className="border border-gray-200 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all uppercase" />
               <datalist id="patient-list">{existingPatients.map(p => <option key={p.id} value={p.name} />)}</datalist>
             </div>
 

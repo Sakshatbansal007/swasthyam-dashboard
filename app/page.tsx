@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -101,6 +101,15 @@ export default function Home() {
           <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-indigo-600 transition-colors group-hover:translate-x-1" />
           <h3 className="font-black text-gray-900 mb-1 text-base">Courier Tracking</h3>
           <p className="text-sm text-gray-500 font-bold">Log and track shipments and courier status</p>
+        </Link>
+
+        <Link href="/item-form" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-teal-100 transition-all group relative">
+          <div className="bg-teal-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <Boxes className="text-teal-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-teal-600 transition-colors group-hover:translate-x-1" />
+          <h3 className="font-black text-gray-900 mb-1 text-base">Item Form</h3>
+          <p className="text-sm text-gray-500 font-bold">Track dental items, inward & outward stock logs</p>
         </Link>
 
       </div>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -110,6 +110,24 @@ export default function Home() {
           <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-teal-600 transition-colors group-hover:translate-x-1" />
           <h3 className="font-black text-gray-900 mb-1 text-base">Item Form</h3>
           <p className="text-sm text-gray-500 font-bold">Track dental items, inward & outward stock logs</p>
+        </Link>
+
+        <Link href="/purchase" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-100 transition-all group relative">
+          <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <ShoppingCart className="text-blue-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-blue-600 transition-colors group-hover:translate-x-1" />
+          <h3 className="font-black text-gray-900 mb-1 text-base">Purchase Form</h3>
+          <p className="text-sm text-gray-500 font-bold">Log dental purchases, suppliers & pending/stock/replacement</p>
+        </Link>
+
+        <Link href="/sale" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all group relative">
+          <div className="bg-purple-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <TrendingUp className="text-purple-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-purple-600 transition-colors group-hover:translate-x-1" />
+          <h3 className="font-black text-gray-900 mb-1 text-base">Sale Form</h3>
+          <p className="text-sm text-gray-500 font-bold">Log dental item sales, clinic orders & track status</p>
         </Link>
 
       </div>

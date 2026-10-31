@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Pencil,
   X,
-  Save
+  Save,
+  ShoppingCart,
+  TrendingUp
 } from 'lucide-react';
 import { ALL_ITEMS, CATEGORIZED_ITEMS } from '../../lib/item-constants';
 
@@ -464,6 +466,28 @@ WITH CHECK (true);`;
             </Link>
           </div>
         </header>
+
+        {/* Section Navigation Switcher */}
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-white border border-gray-200 rounded-2xl shadow-xs mb-8">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black bg-teal-600 text-white shadow-xs">
+            <Boxes className="w-4 h-4" />
+            <span>Item Inventory Form (Active)</span>
+          </div>
+          <Link
+            href="/purchase"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all text-gray-600 hover:bg-gray-100"
+          >
+            <ShoppingCart className="w-4 h-4 text-blue-600" />
+            <span>Purchase Section</span>
+          </Link>
+          <Link
+            href="/sale"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all text-gray-600 hover:bg-gray-100"
+          >
+            <TrendingUp className="w-4 h-4 text-purple-600" />
+            <span>Sale Section</span>
+          </Link>
+        </div>
 
         {/* Page Title */}
         <div className="mb-8">

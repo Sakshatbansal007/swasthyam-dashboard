@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifyCredentials, createSessionToken, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { authenticateUser, createSessionToken, AUTH_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -14,15 +14,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const isValid = verifyCredentials(username, password);
-    if (!isValid) {
+    const user = authenticateUser(username, password);
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid ID or Password. Please try again.' },
         { status: 401 }
       );
     }
 
-    const token = createSessionToken(username);
+    const token = createSessionToken(user.username, user.role);
     const cookieStore = await cookies();
     cookieStore.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
@@ -32,7 +32,11 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      role: user.role,
+      username: user.username,
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: 'Server error processing authentication.' },

@@ -32,8 +32,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Successful login -> redirect to dashboard
-      router.push('/');
+      // Successful login -> route based on user role
+      if (data.role === 'employee') {
+        router.push('/employee-portal');
+      } else {
+        router.push('/');
+      }
       router.refresh();
     } catch (err) {
       setErrorMessage('COULD NOT CONNECT TO SERVER. PLEASE TRY AGAIN.');
@@ -81,7 +85,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoFocus
-                placeholder="ENTER YOUR ID"
+                placeholder="ENTER YOUR HEALTHCARE ID"
                 className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors text-sm normal-case"
               />
             </div>

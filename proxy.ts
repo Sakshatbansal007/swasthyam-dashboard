@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySessionToken, AUTH_COOKIE_NAME } from './lib/auth';
+import { getSessionUser, AUTH_COOKIE_NAME } from './lib/auth';
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const isAuthenticated = token ? verifySessionToken(token) : false;
+  const user = token ? getSessionUser(token) : null;
+  const isAuthenticated = !!user;
 
   const isLoginPage = pathname === '/login';
   const isAuthApi = pathname.startsWith('/api/auth');
@@ -23,7 +24,17 @@ export function proxy(request: NextRequest) {
 
   // Authenticated users trying to access login page
   if (isAuthenticated && isLoginPage) {
+    if (user.role === 'employee') {
+      return NextResponse.redirect(new URL('/employee-portal', request.url));
+    }
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Guard: If employee tries to access any admin pages, redirect to /employee-portal
+  if (isAuthenticated && user.role === 'employee') {
+    if (pathname !== '/employee-portal' && !pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/employee-portal', request.url));
+    }
   }
 
   return NextResponse.next();

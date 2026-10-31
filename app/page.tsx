@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp, UserCheck } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -12,13 +12,22 @@ export default function Home() {
           </div>
           <span className="font-black text-gray-900 text-xl tracking-tight">Swasthyam Healthcare</span>
         </div>
-        <a
-          href="/api/auth/logout"
-          className="flex items-center gap-2 text-xs font-black text-red-500 hover:text-red-700 bg-white border border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl transition-all shadow-sm"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </a>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/employee-portal"
+            className="flex items-center gap-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-4 py-2.5 rounded-xl transition-all shadow-sm"
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Staff Portal (Employee Mode)</span>
+          </Link>
+          <a
+            href="/api/auth/logout"
+            className="flex items-center gap-2 text-xs font-black text-red-500 hover:text-red-700 bg-white border border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl transition-all shadow-sm"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </a>
+        </div>
       </header>
 
       <div className="mb-10">
@@ -128,6 +137,19 @@ export default function Home() {
           <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-purple-600 transition-colors group-hover:translate-x-1" />
           <h3 className="font-black text-gray-900 mb-1 text-base">Sale Form</h3>
           <p className="text-sm text-gray-500 font-bold">Log dental item sales, clinic orders & track status</p>
+        </Link>
+
+        {/* STAFF ENTRY PORTAL (EMPLOYEE ACCESS) */}
+        <Link href="/employee-portal" className="bg-white p-6 rounded-2xl shadow-sm border-2 border-emerald-200 hover:shadow-md hover:border-emerald-400 transition-all group relative bg-gradient-to-br from-white to-emerald-50/30">
+          <div className="bg-emerald-50 w-12 h-12 rounded-full flex items-center justify-center mb-4 border border-emerald-200">
+            <UserCheck className="text-emerald-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-emerald-400 w-5 h-5 group-hover:text-emerald-700 transition-colors group-hover:translate-x-1" />
+          <span className="inline-block text-[10px] font-black tracking-widest text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md mb-1">
+            EMPLOYEE ACCESS
+          </span>
+          <h3 className="font-black text-gray-900 mb-1 text-base">Staff Entry Portal</h3>
+          <p className="text-sm text-gray-500 font-bold">Courier, purchase & sale entry forms only (no data shown)</p>
         </Link>
 
       </div>

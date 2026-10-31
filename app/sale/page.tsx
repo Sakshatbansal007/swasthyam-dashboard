@@ -24,7 +24,8 @@ import {
   ShoppingCart,
   Clock,
   RefreshCw,
-  Plus
+  Plus,
+  UserCheck
 } from 'lucide-react';
 import { ALL_ITEMS, CATEGORIZED_ITEMS } from '../../lib/item-constants';
 
@@ -479,6 +480,13 @@ WITH CHECK (true);`;
             <TrendingUp className="w-4 h-4" />
             <span>Sale Section (Active)</span>
           </div>
+          <Link
+            href="/employee-portal"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Staff Portal (Employee Mode)</span>
+          </Link>
         </div>
 
         {/* Page Title */}

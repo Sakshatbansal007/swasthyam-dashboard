@@ -42,3 +42,4 @@ CREATE INDEX IF NOT EXISTS idx_mc_category ON master_contacts(category);
 CREATE INDEX IF NOT EXISTS idx_mc_name ON master_contacts(name);
 CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);
 CREATE INDEX IF NOT EXISTS idx_mc_phone ON master_contacts(phone);
+

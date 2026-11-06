@@ -37,6 +37,7 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<MasterContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<'supabase' | 'bundled'>('bundled');
+  const [hasSupabaseTable, setHasSupabaseTable] = useState<boolean | null>(null);
   
   // Filtering & Pagination
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -98,24 +99,28 @@ export default function ContactsPage() {
             .order('id', { ascending: true })
             .limit(10);
 
-          if (!error && dbData && dbData.length > 0) {
-            // Live table exists! Let's fetch full records from Supabase
-            const { data: fullDbData, error: fullErr } = await supabase
-              .from('master_contacts')
-              .select('*')
-              .order('id', { ascending: true });
+          if (!error) {
+            setHasSupabaseTable(true);
+            if (dbData && dbData.length > 0) {
+              // Live table exists with data! Fetch full records from Supabase
+              const { data: fullDbData, error: fullErr } = await supabase
+                .from('master_contacts')
+                .select('*')
+                .order('id', { ascending: true });
 
-            if (!fullErr && fullDbData && fullDbData.length > 0) {
-              setContacts(fullDbData as MasterContact[]);
-              setSource('supabase');
+              if (!fullErr && fullDbData && fullDbData.length > 0) {
+                setContacts(fullDbData as MasterContact[]);
+                setSource('supabase');
+              }
             }
+          } else {
+            setHasSupabaseTable(false);
           }
         } catch {
-          // If Supabase table isn't created yet, bundled data continues to serve seamlessly
+          setHasSupabaseTable(false);
         }
       } catch (err) {
-        console.error('Error loading contacts:', err);
-        showToast('Error loading contacts', 'error');
+        console.warn('Initial data load notice:', err);
       } finally {
         setLoading(false);
       }
@@ -217,13 +222,14 @@ export default function ContactsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: contactId, category: newCategory })
       });
-      // Also try direct supabase update
-      await supabase
-        .from('master_contacts')
-        .update({ category: newCategory, updated_at: new Date().toISOString() })
-        .eq('id', contactId);
+      if (hasSupabaseTable) {
+        await supabase
+          .from('master_contacts')
+          .update({ category: newCategory, updated_at: new Date().toISOString() })
+          .eq('id', contactId);
+      }
     } catch (err) {
-      console.warn('Backend sync warning:', err);
+      console.warn('Backend sync notice:', err);
     }
   };
 
@@ -244,12 +250,14 @@ export default function ContactsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      await supabase
-        .from('master_contacts')
-        .update(updated)
-        .eq('id', id);
+      if (hasSupabaseTable) {
+        await supabase
+          .from('master_contacts')
+          .update(updated)
+          .eq('id', id);
+      }
     } catch (err) {
-      console.warn('Backend sync warning:', err);
+      console.warn('Backend sync notice:', err);
     }
   };
 
@@ -288,15 +296,28 @@ export default function ContactsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(created)
       });
-      await supabase.from('master_contacts').insert([created]);
+      if (hasSupabaseTable) {
+        await supabase.from('master_contacts').insert([created]);
+      }
     } catch (err) {
-      console.warn('Backend sync warning:', err);
+      console.warn('Backend sync notice:', err);
     }
   };
 
   // Sync to Supabase in batches
   const handleSyncToSupabase = async () => {
     if (syncing) return;
+
+    // Check if table exists in Supabase first
+    const { error: probeError } = await supabase.from('master_contacts').select('id').limit(1);
+    if (probeError) {
+      setHasSupabaseTable(false);
+      setShowSqlGuide(true);
+      showToast('Table "master_contacts" does not exist in Supabase yet. Please run the SQL schema first.', 'info');
+      return;
+    }
+
+    setHasSupabaseTable(true);
     setSyncing(true);
     setSyncProgress(0);
 
@@ -307,10 +328,26 @@ export default function ContactsPage() {
 
       for (let i = 0; i < total; i += batchSize) {
         const chunk = contacts.slice(i, i + batchSize);
-        const { error } = await supabase.from('master_contacts').upsert(chunk, { onConflict: 'id' });
+        // Sanitize strings from null bytes and control chars
+        const cleanChunk = chunk.map((c) => ({
+          id: c.id,
+          name: (c.name || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          notes: (c.notes || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+        }));
+
+        const { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
 
         if (error) {
-          throw new Error(error.message);
+          setSyncing(false);
+          showToast(`Sync issue: ${error.message}`, 'error');
+          setShowSqlGuide(true);
+          return;
         }
 
         processed = Math.min(i + batchSize, total);
@@ -320,8 +357,7 @@ export default function ContactsPage() {
       setSource('supabase');
       showToast(`Successfully synced all ${total} contacts to Supabase!`, 'success');
     } catch (err: any) {
-      console.error('Sync failed:', err);
-      showToast(`Sync error: ${err.message || 'Ensure table exists in Supabase'}`, 'error');
+      showToast(`Sync notice: ${err?.message || 'Check connection'}`, 'error');
       setShowSqlGuide(true);
     } finally {
       setSyncing(false);
@@ -483,6 +519,32 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
           </button>
         </div>
       </header>
+
+      {/* Banner if Supabase table is not yet detected */}
+      {hasSupabaseTable === false && (
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 text-white rounded-xl">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-black text-gray-900 text-xs">
+                RUNNING FROM LOCAL DATASET (ALL 5,599 CONTACTS READY)
+              </div>
+              <div className="text-[11px] text-gray-500 font-bold lowercase">
+                all contacts, search, and category moves work instantly. to sync to cloud supabase, run the sql schema once.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowSqlGuide(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-black shadow-sm transition-all"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>View SQL Schema</span>
+          </button>
+        </div>
+      )}
 
       {/* Sync progress bar */}
       {syncing && (
@@ -1287,3 +1349,4 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
     </main>
   );
 }
+

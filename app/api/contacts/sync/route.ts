@@ -23,7 +23,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { error } = await supabase.from('master_contacts').upsert(chunk, { onConflict: 'id' });
+    const cleanChunk = chunk.map((c) => ({
+      ...c,
+      name: (c.name || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      notes: (c.notes || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+    }));
+
+    const { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
 
     if (error) {
       return NextResponse.json({
@@ -44,3 +56,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+

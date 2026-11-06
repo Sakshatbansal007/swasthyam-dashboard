@@ -31,3 +31,4 @@ export const CONTACT_CATEGORIES = [
 ] as const;
 
 export type ContactCategory = typeof CONTACT_CATEGORIES[number];
+

@@ -4,8 +4,8 @@ const SECRET = process.env.AUTH_SECRET_KEY || 'swasthyam-secure-session-key-2025
 const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'swasthyam2025';
 
-const DEFAULT_EMPLOYEE_USERNAME = process.env.EMPLOYEE_USERNAME || 'employee';
-const DEFAULT_EMPLOYEE_PASSWORD = process.env.EMPLOYEE_PASSWORD || 'staff2025';
+const DEFAULT_EMPLOYEE_USERNAME = process.env.EMPLOYEE_USERNAME || 'sachin';
+const DEFAULT_EMPLOYEE_PASSWORD = process.env.EMPLOYEE_PASSWORD || 'sachin123';
 
 export const AUTH_COOKIE_NAME = 'swasthyam_auth';
 

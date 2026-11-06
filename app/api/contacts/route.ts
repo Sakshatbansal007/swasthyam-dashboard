@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
         return (
           c.name.toLowerCase().includes(search) ||
           c.phone.toLowerCase().includes(search) ||
+          (c.area && c.area.toLowerCase().includes(search)) ||
           c.district.toLowerCase().includes(search) ||
           c.state.toLowerCase().includes(search) ||
           c.business.toLowerCase().includes(search) ||
@@ -158,7 +159,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phone, district, state, business, birthday, category, notes } = body;
+    const { name, phone, district, state, area, business, birthday, category, notes } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
@@ -174,6 +175,7 @@ export async function POST(request: NextRequest) {
       phone: (phone || '').trim(),
       district: (district || '').trim(),
       state: (state || '').trim(),
+      area: (area || '').trim(),
       business: (business || '').trim(),
       birthday: (birthday || '').trim(),
       category: category || 'Others (Friends, Personal & Unsorted)',
@@ -206,7 +208,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, phone, district, state, business, birthday, category, notes } = body;
+    const { id, name, phone, district, state, area, business, birthday, category, notes } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Contact ID is required' }, { status: 400 });
@@ -220,6 +222,7 @@ export async function PATCH(request: NextRequest) {
     if (phone !== undefined) updatePayload.phone = phone.trim();
     if (district !== undefined) updatePayload.district = district.trim();
     if (state !== undefined) updatePayload.state = state.trim();
+    if (area !== undefined) updatePayload.area = area.trim();
     if (business !== undefined) updatePayload.business = business.trim();
     if (birthday !== undefined) updatePayload.birthday = birthday.trim();
     if (category !== undefined) updatePayload.category = category.trim();

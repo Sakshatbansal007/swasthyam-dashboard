@@ -4,6 +4,7 @@ export interface MasterContact {
   phone: string;
   district: string;
   state: string;
+  area?: string;
   business: string;
   birthday: string;
   category: string;

@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
       district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
       state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+      area: (c.area || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
       business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
       birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
       category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),

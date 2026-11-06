@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS master_contacts (
   phone TEXT DEFAULT '',
   district TEXT DEFAULT '',
   state TEXT DEFAULT '',
+  area TEXT DEFAULT '',
   business TEXT DEFAULT '',
   birthday TEXT DEFAULT '',
   category TEXT NOT NULL,
@@ -16,6 +17,9 @@ CREATE TABLE IF NOT EXISTS master_contacts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- In case table was created earlier without area column:
+ALTER TABLE master_contacts ADD COLUMN IF NOT EXISTS area TEXT DEFAULT '';
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE master_contacts ENABLE ROW LEVEL SECURITY;

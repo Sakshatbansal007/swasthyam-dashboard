@@ -2,12 +2,18 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { Activity, ArrowLeft, Search, Landmark, CheckCircle2, Clock } from 'lucide-react';
+import { Activity, ArrowLeft, Search, Landmark, CheckCircle2, Clock, Pencil, Check, X } from 'lucide-react';
 
 export default function Cheques() {
   const [cheques, setCheques] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [existingPatients, setExistingPatients] = useState<any[]>([]);
+  
+  // Date Editing in Table State
+  const [editingChequeId, setEditingChequeId] = useState<number | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
   
   // Form States
   const [date, setDate] = useState('');
@@ -113,6 +119,25 @@ export default function Cheques() {
     fetchData();
   };
 
+  const handleSaveDates = async (id: number) => {
+    setSavingDate(true);
+    const { error } = await supabase.from('cheques').update({
+      date: editDate,
+      due_date: editDueDate,
+    }).eq('id', id);
+
+    if (!error) {
+      setCheques(prev => prev.map(c => c.id === id ? { ...c, date: editDate, due_date: editDueDate } : c));
+      setStatusMessage('CHEQUE DATES UPDATED SUCCESSFULLY!');
+      setTimeout(() => setStatusMessage(''), 3000);
+    } else {
+      setStatusMessage('ERROR UPDATING CHEQUE DATES');
+      setTimeout(() => setStatusMessage(''), 3000);
+    }
+    setEditingChequeId(null);
+    setSavingDate(false);
+  };
+
   const filteredCheques = cheques.filter(c => 
     (c.name || '').toUpperCase().includes(searchQuery.toUpperCase()) || 
     (c.chq_no || '').toUpperCase().includes(searchQuery.toUpperCase()) ||
@@ -148,35 +173,106 @@ export default function Cheques() {
               <th className="p-4 text-sm font-black text-gray-800 uppercase">CR</th>
               <th className="p-4 text-sm font-black text-gray-800 uppercase">Due Date</th>
               <th className="p-4 text-sm font-black text-gray-800 uppercase">Status</th>
+              <th className="p-4 text-sm font-black text-gray-800 uppercase text-center">Edit Date</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
-              <tr><td colSpan={9} className="p-6 text-center text-gray-400 font-bold uppercase">NO CHEQUES FOUND.</td></tr>
+              <tr><td colSpan={10} className="p-6 text-center text-gray-400 font-bold uppercase">NO CHEQUES FOUND.</td></tr>
             ) : (
-              data.map((c) => (
-                <tr key={c.id} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-violet-50/50 transition-colors">
-                  <td className="p-4 font-bold text-gray-900">{c.date}</td>
-                  <td className="p-4 font-black text-gray-900">{c.chq_no}</td>
-                  <td className="p-4 font-bold text-gray-700 uppercase">{c.bank_name || '-'}</td>
-                  <td className="p-4 font-black text-gray-900">{c.name}</td>
-                  <td className="p-4 font-black text-gray-900">₹ {c.amount}</td>
-                  <td className="p-4 font-bold text-gray-600">{c.dr || '-'}</td>
-                  <td className="p-4 font-bold text-gray-600">{c.cr || '-'}</td>
-                  <td className="p-4 font-bold text-red-600">{c.due_date}</td>
-                  <td className="p-4">
-                    <select 
-                      value={c.status} 
-                      onChange={(e) => updateStatus(c.id, e.target.value)}
-                      className={`font-black uppercase text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${getStatusBadge(c.status)}`}
-                    >
-                      <option value="PENDING" className="uppercase font-bold">PENDING</option>
-                      <option value="BANK" className="uppercase font-bold">BANK</option>
-                      <option value="SWASTHYAM" className="uppercase font-bold">SWASTHYAM</option>
-                    </select>
-                  </td>
-                </tr>
-              ))
+              data.map((c) => {
+                const isEditing = editingChequeId === c.id;
+                return (
+                  <tr key={c.id} className="border-b border-gray-100 odd:bg-white even:bg-gray-200 hover:bg-violet-50/50 transition-colors">
+                    {/* Date Column (Editable) */}
+                    <td className="p-4 font-bold text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="border-2 border-blue-500 rounded-lg px-2 py-1 text-xs font-bold text-gray-900 bg-white shadow-xs outline-none uppercase"
+                        />
+                      ) : (
+                        <span>{c.date || '-'}</span>
+                      )}
+                    </td>
+
+                    <td className="p-4 font-black text-gray-900">{c.chq_no}</td>
+                    <td className="p-4 font-bold text-gray-700 uppercase">{c.bank_name || '-'}</td>
+                    <td className="p-4 font-black text-gray-900">{c.name}</td>
+                    <td className="p-4 font-black text-gray-900">₹ {c.amount}</td>
+                    <td className="p-4 font-bold text-gray-600">{c.dr || '-'}</td>
+                    <td className="p-4 font-bold text-gray-600">{c.cr || '-'}</td>
+
+                    {/* Due Date Column (Editable) */}
+                    <td className="p-4 font-bold text-red-600">
+                      {isEditing ? (
+                        <input
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="border-2 border-red-500 rounded-lg px-2 py-1 text-xs font-bold text-gray-900 bg-white shadow-xs outline-none uppercase"
+                        />
+                      ) : (
+                        <span>{c.due_date || '-'}</span>
+                      )}
+                    </td>
+
+                    {/* Status Column */}
+                    <td className="p-4">
+                      <select 
+                        value={c.status} 
+                        onChange={(e) => updateStatus(c.id, e.target.value)}
+                        className={`font-black uppercase text-xs py-2 px-3 rounded-lg border outline-none cursor-pointer ${getStatusBadge(c.status)}`}
+                      >
+                        <option value="PENDING" className="uppercase font-bold">PENDING</option>
+                        <option value="BANK" className="uppercase font-bold">BANK</option>
+                        <option value="SWASTHYAM" className="uppercase font-bold">SWASTHYAM</option>
+                      </select>
+                    </td>
+
+                    {/* Edit Date Action Column */}
+                    <td className="p-4 text-center">
+                      {isEditing ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveDates(c.id)}
+                            disabled={savingDate}
+                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-black shadow-xs transition-colors"
+                            title="Save Dates"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Save</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingChequeId(null)}
+                            className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-black transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingChequeId(c.id);
+                            setEditDate(c.date || '');
+                            setEditDueDate(c.due_date || '');
+                          }}
+                          className="flex items-center gap-1 text-[11px] font-black text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg transition-all shadow-2xs"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Edit Date</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabase';
 import {
   Activity,
@@ -34,7 +34,22 @@ import {
 import { MasterContact, CONTACT_CATEGORIES, ContactCategory } from '../../lib/contactTypes';
 
 export default function ContactsPage() {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollTable = (direction: 'left' | 'right') => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollBy({
+        left: direction === 'left' ? -350 : 350,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const [contacts, setContacts] = useState<MasterContact[]>([]);
+  const [categories, setCategories] = useState<string[]>([...CONTACT_CATEGORIES]);
+  const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<'supabase' | 'bundled'>('bundled');
   const [hasSupabaseTable, setHasSupabaseTable] = useState<boolean | null>(null);
@@ -42,6 +57,7 @@ export default function ContactsPage() {
   // Filtering & Pagination
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedArea, setSelectedArea] = useState<string>('All');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [selectedState, setSelectedState] = useState<string>('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +78,7 @@ export default function ContactsPage() {
   const [newContact, setNewContact] = useState<Omit<MasterContact, 'id'>>({
     name: '',
     phone: '',
+    area: '',
     district: '',
     state: '',
     business: '',
@@ -69,6 +86,21 @@ export default function ContactsPage() {
     category: 'Others (Friends, Personal & Unsorted)',
     notes: ''
   });
+
+  // Clean phone number formatter (removes +91, removes inner spaces, puts on one line)
+  const cleanDisplayPhone = (raw: string) => {
+    if (!raw) return '';
+    return raw
+      .split(',')
+      .map((p) => {
+        let digits = p.replace(/\D/g, '');
+        if (digits.startsWith('91') && digits.length > 10) digits = digits.slice(2);
+        if (digits.startsWith('0') && digits.length === 11 && digits[1] >= '6') digits = digits.slice(1);
+        return digits;
+      })
+      .filter(Boolean)
+      .join(', ');
+  };
 
   // Show toast notification
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -157,19 +189,38 @@ export default function ContactsPage() {
     loadInitialData();
   }, []);
 
-  // Compute unique districts & states for filters
-  const { districts, states, categoryCounts } = useMemo(() => {
+  // Synchronize any custom categories that exist in contacts
+  useEffect(() => {
+    if (contacts.length > 0) {
+      setCategories((prev) => {
+        const catSet = new Set(prev);
+        let changed = false;
+        for (const c of contacts) {
+          if (c.category && !catSet.has(c.category)) {
+            catSet.add(c.category);
+            changed = true;
+          }
+        }
+        return changed ? Array.from(catSet) : prev;
+      });
+    }
+  }, [contacts]);
+
+  // Compute unique districts, states & areas for filters
+  const { districts, states, areas, categoryCounts } = useMemo(() => {
     const distSet = new Set<string>();
     const stateSet = new Set<string>();
+    const areaSet = new Set<string>();
     const counts: Record<string, number> = { All: contacts.length };
 
-    for (const cat of CONTACT_CATEGORIES) {
+    for (const cat of categories) {
       counts[cat] = 0;
     }
 
     for (const c of contacts) {
       if (c.district) distSet.add(c.district);
       if (c.state) stateSet.add(c.state);
+      if (c.area) areaSet.add(c.area);
       if (counts[c.category] !== undefined) {
         counts[c.category]++;
       } else {
@@ -181,16 +232,21 @@ export default function ContactsPage() {
     return {
       districts: Array.from(distSet).sort(),
       states: Array.from(stateSet).sort(),
+      areas: Array.from(areaSet).sort(),
       categoryCounts: counts
     };
-  }, [contacts]);
+  }, [contacts, categories]);
 
-  // Filtered contacts based on category, search query, district, state
+  // Filtered contacts based on category, search query, area, district, state
   const filteredContacts = useMemo(() => {
     let result = contacts;
 
     if (selectedCategory !== 'All') {
       result = result.filter((c) => c.category === selectedCategory);
+    }
+
+    if (selectedArea !== 'All') {
+      result = result.filter((c) => (c.area || '').toLowerCase() === selectedArea.toLowerCase());
     }
 
     if (selectedDistrict !== 'All') {
@@ -207,6 +263,7 @@ export default function ContactsPage() {
         return (
           c.name.toLowerCase().includes(q) ||
           c.phone.toLowerCase().includes(q) ||
+          (c.area && c.area.toLowerCase().includes(q)) ||
           c.district.toLowerCase().includes(q) ||
           c.state.toLowerCase().includes(q) ||
           c.business.toLowerCase().includes(q) ||
@@ -217,12 +274,12 @@ export default function ContactsPage() {
     }
 
     return result;
-  }, [contacts, selectedCategory, selectedDistrict, selectedState, searchQuery]);
+  }, [contacts, selectedCategory, selectedArea, selectedDistrict, selectedState, searchQuery]);
 
   // Reset page when category or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, searchQuery, selectedDistrict, selectedState, pageSize]);
+  }, [selectedCategory, searchQuery, selectedArea, selectedDistrict, selectedState, pageSize]);
 
   // Paginated results
   const totalPages = Math.ceil(filteredContacts.length / pageSize) || 1;
@@ -297,8 +354,17 @@ export default function ContactsPage() {
     }
 
     const maxId = contacts.reduce((max, c) => (c.id > max ? c.id : max), 5599);
+    const categoryToUse = isCreatingNewCategory && customCategoryInput.trim()
+      ? customCategoryInput.trim()
+      : newContact.category;
+
+    if (!categories.includes(categoryToUse)) {
+      setCategories((prev) => [...prev, categoryToUse]);
+    }
+
     const created: MasterContact = {
       ...newContact,
+      category: categoryToUse,
       id: maxId + 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -306,9 +372,12 @@ export default function ContactsPage() {
 
     setContacts((prev) => [created, ...prev]);
     setIsAddingNew(false);
+    setIsCreatingNewCategory(false);
+    setCustomCategoryInput('');
     setNewContact({
       name: '',
       phone: '',
+      area: '',
       district: '',
       state: '',
       business: '',
@@ -374,6 +443,7 @@ export default function ContactsPage() {
           phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
           district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
           state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          area: (c.area || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
           business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
           birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
           category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
@@ -519,7 +589,11 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setIsAddingNew(true)}
+            onClick={() => {
+              setIsCreatingNewCategory(false);
+              setCustomCategoryInput('');
+              setIsAddingNew(true);
+            }}
             className="flex items-center gap-1.5 text-xs font-black bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -635,7 +709,7 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
             </span>
           </button>
 
-          {CONTACT_CATEGORIES.map((cat, idx) => {
+          {categories.map((cat, idx) => {
             const isSelected = selectedCategory === cat;
             const count = categoryCounts[cat] || 0;
             const isOthers = cat.startsWith('Others');
@@ -706,6 +780,23 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
           )}
         </div>
 
+        {/* Area Filter */}
+        <div className="flex items-center gap-1.5 text-xs font-black text-gray-700">
+          <MapPin className="w-4 h-4 text-purple-500" />
+          <select
+            value={selectedArea}
+            onChange={(e) => setSelectedArea(e.target.value)}
+            className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:border-blue-500 uppercase"
+          >
+            <option value="All">All Areas ({areas.length})</option>
+            {areas.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* District Filter */}
         <div className="flex items-center gap-1.5 text-xs font-black text-gray-700">
           <MapPin className="w-4 h-4 text-gray-400" />
@@ -758,39 +849,41 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
 
       {/* Main Table */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-        <div className="overflow-x-auto">
+        <div ref={tableContainerRef} className="overflow-x-auto scroll-smooth">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-black text-gray-600 tracking-wider">
                 <th className="py-3 px-3 w-12 text-center">#</th>
                 <th className="py-3 px-4 min-w-[200px]">NAME</th>
-                <th className="py-3 px-4 min-w-[170px]">PHONE NUMBER</th>
+                <th className="py-3 px-4 min-w-[170px] whitespace-nowrap">PHONE NUMBER</th>
+                <th className="py-3 px-4 min-w-[120px]">AREA</th>
                 <th className="py-3 px-4 min-w-[120px]">DISTRICT</th>
                 <th className="py-3 px-4 min-w-[110px]">STATE</th>
                 <th className="py-3 px-4 min-w-[170px]">BUSINESS</th>
                 <th className="py-3 px-4 min-w-[120px]">BIRTHDAY</th>
                 <th className="py-3 px-4 min-w-[180px]">CATEGORY</th>
-                <th className="py-3 px-4 min-w-[190px] text-center">ACTIONS / MOVE</th>
+                <th className="py-3 px-2 w-20 min-w-[75px] max-w-[85px] text-center">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-400 font-bold">
+                  <td colSpan={10} className="py-12 text-center text-gray-400 font-bold">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                     <span>Loading 5,599 Contacts...</span>
                   </td>
                 </tr>
               ) : paginatedContacts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-400 font-bold">
+                  <td colSpan={10} className="py-12 text-center text-gray-400 font-bold">
                     No contacts found matching the filters.
                   </td>
                 </tr>
               ) : (
-                paginatedContacts.map((c) => {
+                paginatedContacts.map((c, idx) => {
                   const isOthers = c.category.startsWith('Others');
-                  const primaryPhone = c.phone ? c.phone.split(',')[0].replace(/\D/g, '') : '';
+                  const formattedPhone = cleanDisplayPhone(c.phone);
+                  const firstPhoneDigits = formattedPhone ? formattedPhone.split(',')[0].replace(/\D/g, '') : '';
 
                   return (
                     <tr
@@ -812,22 +905,22 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                         )}
                       </td>
 
-                      {/* Phone Number */}
-                      <td className="py-3 px-4">
-                        {c.phone ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-gray-800">{c.phone}</span>
-                            {primaryPhone.length >= 10 && (
+                      {/* Phone Number (Single line, no +91, no space inside numbers) */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {formattedPhone ? (
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="font-mono font-bold text-gray-800">{formattedPhone}</span>
+                            {firstPhoneDigits.length >= 10 && (
                               <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                 <a
-                                  href={`tel:${primaryPhone}`}
+                                  href={`tel:${firstPhoneDigits}`}
                                   className="p-1 hover:bg-blue-100 rounded text-blue-600 transition-colors"
                                   title="Call"
                                 >
                                   <Phone className="w-3 h-3" />
                                 </a>
                                 <a
-                                  href={`https://wa.me/${primaryPhone.length === 10 ? '91' + primaryPhone : primaryPhone}`}
+                                  href={`https://wa.me/${firstPhoneDigits.length === 10 ? '91' + firstPhoneDigits : firstPhoneDigits}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="p-1 hover:bg-emerald-100 rounded text-emerald-600 transition-colors"
@@ -843,10 +936,21 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                         )}
                       </td>
 
+                      {/* Area */}
+                      <td className="py-3 px-4">
+                        {c.area ? (
+                          <span className="inline-block bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-black text-[11px] whitespace-nowrap">
+                            {c.area}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 italic lowercase">—</span>
+                        )}
+                      </td>
+
                       {/* District */}
                       <td className="py-3 px-4">
                         {c.district ? (
-                          <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-black text-[11px]">
+                          <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-black text-[11px] whitespace-nowrap">
                             {c.district}
                           </span>
                         ) : (
@@ -857,7 +961,7 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                       {/* State */}
                       <td className="py-3 px-4">
                         {c.state ? (
-                          <span className="font-bold text-gray-700 text-[11px]">
+                          <span className="font-bold text-gray-700 text-[11px] whitespace-nowrap">
                             {c.state}
                           </span>
                         ) : (
@@ -882,7 +986,7 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                       {/* Birthday */}
                       <td className="py-3 px-4">
                         {c.birthday ? (
-                          <div className="flex items-center gap-1 font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded w-fit text-[11px]">
+                          <div className="flex items-center gap-1 font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded w-fit text-[11px] whitespace-nowrap">
                             <Cake className="w-3 h-3 text-pink-500 shrink-0" />
                             <span>{c.birthday}</span>
                           </div>
@@ -894,7 +998,7 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                       {/* Category Badge */}
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md whitespace-nowrap ${
                             isOthers
                               ? 'bg-amber-100 text-amber-900 border border-amber-200'
                               : 'bg-gray-100 text-gray-700 border border-gray-200'
@@ -904,41 +1008,35 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                         </span>
                       </td>
 
-                      {/* Actions & Category Move Dropdown */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {/* Quick Category Move Dropdown (Highly emphasized for Others) */}
-                          <div className="relative">
-                            <select
-                              value=""
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleQuickCategoryChange(c.id, e.target.value);
-                                }
-                              }}
-                              className={`text-[10px] font-black rounded-lg px-2 py-1 focus:outline-none transition-all cursor-pointer border ${
-                                isOthers
-                                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm'
-                                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
-                              }`}
-                              title="Move contact to another category"
-                            >
-                              <option value="" disabled>
-                                {isOthers ? '⚡ Move Category...' : 'Move to...'}
+                      {/* Actions (Small / Compact) */}
+                      <td className="py-3 px-2 w-20 min-w-[75px] max-w-[85px] text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Mini Category Reassign */}
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleQuickCategoryChange(c.id, e.target.value);
+                              }
+                            }}
+                            className="text-[9px] font-black rounded px-1 py-0.5 border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer max-w-[48px]"
+                            title="Reassign Category"
+                          >
+                            <option value="" disabled>
+                              {isOthers ? '⚡ Move' : 'Move'}
+                            </option>
+                            {categories.map((cat) => (
+                              <option key={cat} value={cat} disabled={cat === c.category}>
+                                {cat}
                               </option>
-                              {CONTACT_CATEGORIES.map((cat) => (
-                                <option key={cat} value={cat} disabled={cat === c.category}>
-                                  {cat}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                            ))}
+                          </select>
 
-                          {/* Edit Button */}
+                          {/* Mini Edit Button */}
                           <button
                             onClick={() => setEditingContact(c)}
-                            className="p-1.5 bg-gray-100 hover:bg-blue-100 hover:text-blue-700 text-gray-600 rounded-lg transition-colors"
-                            title="Edit Contact Details"
+                            className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit Contact"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -946,7 +1044,42 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                       </td>
                     </tr>
                   );
-                })
+                }).reduce((rows: React.ReactNode[], currentRow, idx) => {
+                  rows.push(currentRow);
+                  // Insert scroll controls after every 5 rows
+                  if ((idx + 1) % 5 === 0 && idx + 1 < paginatedContacts.length) {
+                    rows.push(
+                      <tr key={`scroll-row-${idx}`} className="bg-slate-100/90 border-y border-slate-200">
+                        <td colSpan={10} className="py-1.5 px-4">
+                          <div className="flex items-center justify-between text-[11px] font-black text-slate-500">
+                            <span className="text-[10px] tracking-wider text-slate-500 uppercase">
+                              Row {idx + 1} of {filteredContacts.length}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => scrollTable('left')}
+                                className="flex items-center gap-1 px-2.5 py-0.5 bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-300 rounded shadow-2xs text-[10px] font-black transition-all cursor-pointer"
+                              >
+                                <ChevronLeft className="w-3 h-3" />
+                                <span>Scroll Left</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => scrollTable('right')}
+                                className="flex items-center gap-1 px-2.5 py-0.5 bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-slate-300 rounded shadow-2xs text-[10px] font-black transition-all cursor-pointer"
+                              >
+                                <span>Scroll Right</span>
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return rows;
+                }, [])
               )}
             </tbody>
           </table>
@@ -1045,6 +1178,21 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">
+                  AREA / LOCALITY
+                </label>
+                <input
+                  type="text"
+                  value={editingContact.area || ''}
+                  onChange={(e) =>
+                    setEditingContact({ ...editingContact, area: e.target.value })
+                  }
+                  placeholder="e.g. Model Town, Dugri Phase 2, Vishal Nagar"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500 uppercase"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-black text-gray-700 mb-1">
@@ -1117,7 +1265,7 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                   }
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500"
                 >
-                  {CONTACT_CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
@@ -1202,8 +1350,23 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
                   type="text"
                   value={newContact.phone}
                   onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
-                  placeholder="+91 98765 43210"
+                  placeholder="e.g. 9876543210 (without +91)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">
+                  AREA / LOCALITY
+                </label>
+                <input
+                  type="text"
+                  value={newContact.area || ''}
+                  onChange={(e) =>
+                    setNewContact({ ...newContact, area: e.target.value })
+                  }
+                  placeholder="e.g. Model Town, Dugri Phase 2, Civil Lines"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500 uppercase"
                 />
               </div>
 
@@ -1269,22 +1432,50 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-700 mb-1">
-                  CATEGORY
-                </label>
-                <select
-                  value={newContact.category}
-                  onChange={(e) =>
-                    setNewContact({ ...newContact, category: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500"
-                >
-                  {CONTACT_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-black text-gray-700">
+                    CATEGORY
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingNewCategory(!isCreatingNewCategory);
+                      setCustomCategoryInput('');
+                    }}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline transition-colors"
+                  >
+                    {isCreatingNewCategory ? '← Choose Existing' : '+ Create New Category'}
+                  </button>
+                </div>
+                {isCreatingNewCategory ? (
+                  <div className="space-y-1.5">
+                    <input
+                      type="text"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      placeholder="Type new category name... (e.g. Medical Suppliers)"
+                      className="w-full px-3 py-2 bg-emerald-50/50 border-2 border-emerald-400 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-600"
+                      autoFocus
+                    />
+                    <p className="text-[10px] text-gray-500 font-medium">
+                      This will create a new category tab and place this contact directly into it.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={newContact.category}
+                    onChange={(e) =>
+                      setNewContact({ ...newContact, category: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>

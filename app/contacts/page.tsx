@@ -29,7 +29,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Layers,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { MasterContact, CONTACT_CATEGORIES, ContactCategory } from '../../lib/contactTypes';
 
@@ -628,6 +629,14 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/whatsapp"
+            className="flex items-center gap-1.5 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-all"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>WhatsApp Broadcast</span>
+          </Link>
+
           <button
             onClick={() => {
               setIsCreatingNewCategory(false);

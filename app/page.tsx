@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp, UserCheck, Contact } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp, UserCheck, Contact, MessageSquare } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -39,6 +39,19 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
+        {/* WHATSAPP BROADCAST SUITE */}
+        <Link href="/whatsapp" className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md hover:border-emerald-300 transition-all group relative bg-gradient-to-br from-white to-emerald-50/40">
+          <div className="bg-emerald-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <MessageSquare className="text-emerald-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-emerald-600 transition-colors group-hover:translate-x-1" />
+          <span className="inline-block text-[10px] font-black tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md mb-1">
+            CAMPAIGNS · ANTI-BAN · PHOTOS
+          </span>
+          <h3 className="font-black text-gray-900 mb-1 text-base">WhatsApp Broadcast</h3>
+          <p className="text-sm text-gray-500 font-bold">Broadcast customized messages & images by doctor/client category with anti-ban gateway</p>
+        </Link>
+
         {/* MASTER CONTACT LIST */}
         <Link href="/contacts" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all group relative bg-gradient-to-br from-white to-blue-50/30">
           <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">

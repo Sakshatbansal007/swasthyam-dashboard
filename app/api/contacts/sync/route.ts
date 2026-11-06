@@ -36,7 +36,14 @@ export async function POST(request: NextRequest) {
       notes: (c.notes || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
     }));
 
-    const { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
+    let { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
+
+    // Fallback if 'area' column is missing in schema cache
+    if (error && error.message.includes('area')) {
+      const fallbackChunk = cleanChunk.map(({ area: _a, ...rest }) => rest);
+      const retryResult = await supabase.from('master_contacts').upsert(fallbackChunk, { onConflict: 'id' });
+      error = retryResult.error;
+    }
 
     if (error) {
       return NextResponse.json({

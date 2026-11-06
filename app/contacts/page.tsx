@@ -68,6 +68,7 @@ export default function ContactsPage() {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [copiedAreaSql, setCopiedAreaSql] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   // Syncing to Supabase
@@ -336,10 +337,15 @@ export default function ContactsPage() {
         body: JSON.stringify(updated)
       });
       if (hasSupabaseTable) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('master_contacts')
           .update(updated)
           .eq('id', id);
+
+        if (updateError && updateError.message.includes('area')) {
+          const { area: _a, ...withoutArea } = updated;
+          await supabase.from('master_contacts').update(withoutArea).eq('id', id);
+        }
       }
     } catch (err) {
       console.warn('Backend sync notice:', err);
@@ -394,7 +400,11 @@ export default function ContactsPage() {
         body: JSON.stringify(created)
       });
       if (hasSupabaseTable) {
-        await supabase.from('master_contacts').insert([created]);
+        const { error: insertError } = await supabase.from('master_contacts').insert([created]);
+        if (insertError && insertError.message.includes('area')) {
+          const { area: _a, ...withoutArea } = created;
+          await supabase.from('master_contacts').insert([withoutArea]);
+        }
       }
     } catch (err) {
       console.warn('Backend sync notice:', err);
@@ -413,6 +423,10 @@ export default function ContactsPage() {
       showToast('Table "master_contacts" does not exist in Supabase yet. Please run the SQL schema first.', 'info');
       return;
     }
+
+    // Check if 'area' column exists in Supabase table schema cache
+    const { error: areaProbeError } = await supabase.from('master_contacts').select('area').limit(1);
+    let hasAreaColumn = !areaProbeError;
 
     setHasSupabaseTable(true);
     setSyncing(true);
@@ -437,20 +451,33 @@ export default function ContactsPage() {
       for (let i = 0; i < total; i += batchSize) {
         const chunk = dataset.slice(i, i + batchSize);
         // Sanitize strings from null bytes and control chars
-        const cleanChunk = chunk.map((c) => ({
-          id: c.id,
-          name: (c.name || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          area: (c.area || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-          notes: (c.notes || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
-        }));
+        const cleanChunk = chunk.map((c) => {
+          const row: any = {
+            id: c.id,
+            name: (c.name || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            phone: (c.phone || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            district: (c.district || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            state: (c.state || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            business: (c.business || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            birthday: (c.birthday || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            category: (c.category || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+            notes: (c.notes || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim(),
+          };
+          if (hasAreaColumn) {
+            row.area = (c.area || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim();
+          }
+          return row;
+        });
 
-        const { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
+        let { error } = await supabase.from('master_contacts').upsert(cleanChunk, { onConflict: 'id' });
+
+        // If error mentions 'area', disable area for this and subsequent chunks and retry
+        if (error && error.message.includes('area')) {
+          hasAreaColumn = false;
+          const fallbackChunk = cleanChunk.map(({ area: _a, ...rest }) => rest);
+          const retry = await supabase.from('master_contacts').upsert(fallbackChunk, { onConflict: 'id' });
+          error = retry.error;
+        }
 
         if (error) {
           setSyncing(false);
@@ -464,7 +491,11 @@ export default function ContactsPage() {
       }
 
       setSource('supabase');
-      showToast(`Successfully synced all ${total} contacts to Supabase!`, 'success');
+      if (hasAreaColumn) {
+        showToast(`Successfully synced all ${total} contacts (including Area) to Supabase!`, 'success');
+      } else {
+        showToast(`Synced all ${total} contacts! To also sync the Area column, run the 1-line SQL in "SQL Schema".`, 'info');
+      }
     } catch (err: any) {
       showToast(`Sync notice: ${err?.message || 'Check connection'}`, 'error');
       setShowSqlGuide(true);
@@ -505,11 +536,15 @@ export default function ContactsPage() {
     showToast(`Exported ${filteredContacts.length} contacts to CSV!`, 'success');
   };
 
+  const areaSqlCode = `ALTER TABLE master_contacts ADD COLUMN IF NOT EXISTS area TEXT DEFAULT '';
+NOTIFY pgrst, 'reload schema';`;
+
   const sqlCode = `-- Run this in Supabase SQL Editor:
 CREATE TABLE IF NOT EXISTS master_contacts (
   id BIGINT PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT DEFAULT '',
+  area TEXT DEFAULT '',
   district TEXT DEFAULT '',
   state TEXT DEFAULT '',
   business TEXT DEFAULT '',
@@ -520,11 +555,16 @@ CREATE TABLE IF NOT EXISTS master_contacts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- If you already have the table, run this to add the area column:
+ALTER TABLE master_contacts ADD COLUMN IF NOT EXISTS area TEXT DEFAULT '';
+NOTIFY pgrst, 'reload schema';
+
 ALTER TABLE master_contacts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public all" ON master_contacts FOR ALL USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_mc_category ON master_contacts(category);
 CREATE INDEX IF NOT EXISTS idx_mc_name ON master_contacts(name);
 CREATE INDEX IF NOT EXISTS idx_mc_phone ON master_contacts(phone);
+CREATE INDEX IF NOT EXISTS idx_mc_area ON master_contacts(area);
 CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
 
   return (
@@ -1535,6 +1575,39 @@ CREATE INDEX IF NOT EXISTS idx_mc_district ON master_contacts(district);`;
             <p className="text-xs text-gray-600 font-bold mb-3 lowercase">
               if you want to persist contacts in your live supabase database, run this script once in your supabase sql editor:
             </p>
+
+            {/* Quick 1-line fix if table already exists */}
+            <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-3.5">
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-xs font-black text-purple-900">
+                  Already created table earlier? Run this 1 line to add the AREA column:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(areaSqlCode);
+                    setCopiedAreaSql(true);
+                    setTimeout(() => setCopiedAreaSql(false), 2500);
+                  }}
+                  className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded-lg text-[11px] font-black transition-all shadow-xs"
+                >
+                  {copiedAreaSql ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-300" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copy 1-Line SQL</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className="bg-purple-950 text-purple-200 p-2.5 rounded-lg text-[11px] font-mono overflow-x-auto whitespace-pre">
+                {areaSqlCode}
+              </pre>
+            </div>
 
             <div className="relative mb-4">
               <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre">

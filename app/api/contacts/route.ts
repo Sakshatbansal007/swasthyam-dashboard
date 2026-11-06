@@ -186,7 +186,11 @@ export async function POST(request: NextRequest) {
 
     // Try saving to Supabase
     try {
-      await supabase.from('master_contacts').insert([newContact]);
+      const { error: insertError } = await supabase.from('master_contacts').insert([newContact]);
+      if (insertError && insertError.message.includes('area')) {
+        const { area: _a, ...withoutArea } = newContact;
+        await supabase.from('master_contacts').insert([withoutArea]);
+      }
     } catch (e) {
       console.warn('Could not insert into Supabase directly:', e);
     }
@@ -235,7 +239,16 @@ export async function PATCH(request: NextRequest) {
         .from('master_contacts')
         .update(updatePayload)
         .eq('id', id);
-      if (!error) supabaseUpdated = true;
+      if (!error) {
+        supabaseUpdated = true;
+      } else if (error.message.includes('area')) {
+        const { area: _a, ...withoutArea } = updatePayload;
+        const retryResult = await supabase
+          .from('master_contacts')
+          .update(withoutArea)
+          .eq('id', id);
+        if (!retryResult.error) supabaseUpdated = true;
+      }
     } catch (e) {
       console.warn('Could not update Supabase directly:', e);
     }

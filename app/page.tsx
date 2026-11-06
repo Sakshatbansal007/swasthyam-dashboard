@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp, UserCheck } from 'lucide-react';
+import { Activity, PlusCircle, Bell, FileText, MapPin, Package, ArrowRight, Users, AlertTriangle, Landmark, LogOut, Boxes, ShoppingCart, TrendingUp, UserCheck, Contact } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -39,6 +39,19 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
+        {/* MASTER CONTACT LIST */}
+        <Link href="/contacts" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all group relative bg-gradient-to-br from-white to-blue-50/30">
+          <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+            <Contact className="text-blue-600 w-6 h-6" />
+          </div>
+          <ArrowRight className="absolute top-6 right-6 text-gray-300 w-5 h-5 group-hover:text-blue-600 transition-colors group-hover:translate-x-1" />
+          <span className="inline-block text-[10px] font-black tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md mb-1">
+            5,599 CONTACTS · 15 CATEGORIES
+          </span>
+          <h3 className="font-black text-gray-900 mb-1 text-base">Contact List</h3>
+          <p className="text-sm text-gray-500 font-bold">Search, filter & edit contacts by doctors, dentists, CGM & communities</p>
+        </Link>
+
         {/* NEW CHQ INFORMATION LINK */}
         <Link href="/cheques" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-violet-100 transition-all group relative">
           <div className="bg-violet-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">

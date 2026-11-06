@@ -14,9 +14,9 @@ import {
   LogOut,
   Shield,
   Search,
-  ArrowRight,
   Send,
-  UserCheck
+  UserCheck,
+  Zap
 } from 'lucide-react';
 import { CATEGORIZED_ITEMS } from '../../lib/item-constants';
 
@@ -39,6 +39,12 @@ export default function EmployeePortalPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<FormTab>('courier');
   const [currentUser, setCurrentUser] = useState<{ username: string; role: string } | null>(null);
+
+  // Suggestions state
+  const [existingPatients, setExistingPatients] = useState<any[]>([]);
+  const [existingSuppliers, setExistingSuppliers] = useState<string[]>([]);
+  const [existingBuyers, setExistingBuyers] = useState<string[]>([]);
+  const [autofillNotice, setAutofillNotice] = useState<string>('');
 
   // ===================== COURIER FORM STATE =====================
   const [courierPatientName, setCourierPatientName] = useState('');
@@ -100,6 +106,247 @@ export default function EmployeePortalPage() {
     }
     checkAuth();
   }, [router]);
+
+  // Load suggestions from database on mount
+  useEffect(() => {
+    async function loadDatabaseSuggestions() {
+      try {
+        // 1. Fetch patients for courier suggestions & autofill
+        const { data: pData } = await supabase
+          .from('patients')
+          .select('id, name, phone, email, area')
+          .order('name');
+        if (pData) setExistingPatients(pData);
+
+        // 2. Fetch past supplier names for purchase suggestions
+        const { data: purData } = await supabase
+          .from('item_purchases')
+          .select('party_name')
+          .order('created_at', { ascending: false })
+          .limit(200);
+        if (purData) {
+          const uniqueSuppliers = Array.from(
+            new Set(purData.map((p: any) => (p.party_name || '').trim().toUpperCase()).filter(Boolean))
+          );
+          setExistingSuppliers(uniqueSuppliers as string[]);
+        }
+
+        // 3. Fetch past buyer / doctor names for sale suggestions
+        const [salesData, doctorsData] = await Promise.all([
+          supabase.from('item_sales').select('party_name').order('created_at', { ascending: false }).limit(200),
+          supabase.from('doctors').select('name').limit(150),
+        ]);
+        const buyersList = new Set<string>();
+        if (salesData.data) {
+          salesData.data.forEach((s: any) => {
+            if (s.party_name) buyersList.add(s.party_name.trim().toUpperCase());
+          });
+        }
+        if (doctorsData.data) {
+          doctorsData.data.forEach((d: any) => {
+            if (d.name) buyersList.add(d.name.trim().toUpperCase());
+          });
+        }
+        if (pData) {
+          pData.forEach((p: any) => {
+            if (p.name) buyersList.add(p.name.trim().toUpperCase());
+          });
+        }
+        setExistingBuyers(Array.from(buyersList));
+      } catch (err) {
+        console.error('Error loading suggestions:', err);
+      }
+    }
+    loadDatabaseSuggestions();
+  }, []);
+
+  // ===================== AUTO-FETCH LOGIC =====================
+
+  // 1. Courier: Auto-fetch patient details
+  const autoFillPatient = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) {
+      setCourierPhone('');
+      setCourierEmail('');
+      setCourierArea('');
+      setCourierSentFrom('');
+      setAutofillNotice('');
+      return;
+    }
+
+    let foundPatient = existingPatients.find(
+      (p) => (p.name || '').trim().toUpperCase() === cleanName
+    );
+
+    // If not found in memory, query database
+    if (!foundPatient) {
+      const { data: dbPatient } = await supabase
+        .from('patients')
+        .select('*')
+        .ilike('name', cleanName)
+        .limit(1)
+        .maybeSingle();
+      if (dbPatient) foundPatient = dbPatient;
+    }
+
+    let fetchedAny = false;
+
+    if (foundPatient) {
+      if (foundPatient.phone != null) {
+        setCourierPhone(String(foundPatient.phone).toUpperCase());
+        fetchedAny = true;
+      }
+      if (foundPatient.email != null) {
+        setCourierEmail(String(foundPatient.email).toUpperCase());
+        fetchedAny = true;
+      }
+      if (foundPatient.area != null) {
+        setCourierArea(String(foundPatient.area).toUpperCase());
+        fetchedAny = true;
+      }
+    }
+
+    // Check past courier shipments for sent_from and courier_company info
+    const { data: pastCourier } = await supabase
+      .from('couriers')
+      .select('sent_from, courier_company, patient_phone, patient_email, patient_area')
+      .ilike('patient_name', cleanName)
+      .order('dispatch_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pastCourier) {
+      if (pastCourier.sent_from != null) {
+        setCourierSentFrom(String(pastCourier.sent_from).toUpperCase());
+        fetchedAny = true;
+      }
+      if (pastCourier.courier_company != null) {
+        const comp = String(pastCourier.courier_company).toUpperCase();
+        if (COMMON_COURIERS.includes(comp)) {
+          setCourierCompany(comp);
+          setCustomCourierCompany('');
+        } else {
+          setCourierCompany('OTHER');
+          setCustomCourierCompany(comp);
+        }
+        fetchedAny = true;
+      }
+      if (!foundPatient?.phone && pastCourier.patient_phone != null) {
+        setCourierPhone(String(pastCourier.patient_phone).toUpperCase());
+        fetchedAny = true;
+      }
+      if (!foundPatient?.email && pastCourier.patient_email != null) {
+        setCourierEmail(String(pastCourier.patient_email).toUpperCase());
+        fetchedAny = true;
+      }
+      if (!foundPatient?.area && pastCourier.patient_area != null) {
+        setCourierArea(String(pastCourier.patient_area).toUpperCase());
+        fetchedAny = true;
+      }
+    }
+
+    if (fetchedAny) {
+      setAutofillNotice(`⚡ Auto-fetched patient details from database for "${cleanName}"`);
+      setTimeout(() => setAutofillNotice(''), 3500);
+    }
+  };
+
+  const handlePatientNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typed = e.target.value.toUpperCase();
+    setCourierPatientName(typed);
+    await autoFillPatient(typed);
+  };
+
+  // 2. Purchase: Auto-fetch supplier details
+  const autoFillSupplier = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) return;
+
+    const { data: pastPurchase } = await supabase
+      .from('item_purchases')
+      .select('notes, status')
+      .ilike('party_name', cleanName)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pastPurchase) {
+      let fetched = false;
+      if (pastPurchase.notes && !purchaseNotes) {
+        setPurchaseNotes(String(pastPurchase.notes).toUpperCase());
+        fetched = true;
+      }
+      if (pastPurchase.status) {
+        setPurchaseStatus(pastPurchase.status as any);
+        fetched = true;
+      }
+      if (fetched) {
+        setAutofillNotice(`⚡ Auto-fetched supplier details for "${cleanName}"`);
+        setTimeout(() => setAutofillNotice(''), 3500);
+      }
+    }
+  };
+
+  const handlePurchasePartyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typed = e.target.value.toUpperCase();
+    setPurchaseParty(typed);
+    await autoFillSupplier(typed);
+  };
+
+  // 3. Sale: Auto-fetch buyer / doctor details
+  const autoFillBuyer = async (nameToMatch: string) => {
+    const cleanName = nameToMatch.trim().toUpperCase();
+    if (!cleanName) return;
+
+    let fetched = false;
+
+    // Check past sales for this buyer
+    const { data: pastSale } = await supabase
+      .from('item_sales')
+      .select('notes, status')
+      .ilike('party_name', cleanName)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pastSale) {
+      if (pastSale.notes && !saleNotes) {
+        setSaleNotes(String(pastSale.notes).toUpperCase());
+        fetched = true;
+      }
+      if (pastSale.status) {
+        setSaleStatus(pastSale.status as any);
+        fetched = true;
+      }
+    }
+
+    // Also check if matches a patient record for contact / location info
+    const { data: dbPatient } = await supabase
+      .from('patients')
+      .select('phone, area')
+      .ilike('name', cleanName)
+      .limit(1)
+      .maybeSingle();
+
+    if (dbPatient && !saleNotes) {
+      const details = [dbPatient.phone, dbPatient.area].filter(Boolean).join(' - ');
+      if (details) {
+        setSaleNotes(details.toUpperCase());
+        fetched = true;
+      }
+    }
+
+    if (fetched) {
+      setAutofillNotice(`⚡ Auto-fetched buyer details for "${cleanName}"`);
+      setTimeout(() => setAutofillNotice(''), 3500);
+    }
+  };
+
+  const handleSalePartyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const typed = e.target.value.toUpperCase();
+    setSaleParty(typed);
+    await autoFillBuyer(typed);
+  };
 
   // Filtered item options for Purchase
   const visiblePurchaseOptions = useMemo(() => {
@@ -181,14 +428,31 @@ export default function EmployeePortalPage() {
           .limit(1);
 
         if (!existingP || existingP.length === 0) {
-          await supabase.from('patients').insert([
-            {
-              name: upperName,
+          const { data: newP } = await supabase
+            .from('patients')
+            .insert([
+              {
+                name: upperName,
+                phone: upperPhone || null,
+                email: upperEmail || null,
+                area: upperArea || null,
+              },
+            ])
+            .select()
+            .single();
+
+          if (newP) {
+            setExistingPatients((prev) => [...prev, newP]);
+          }
+        } else if (upperPhone || upperEmail || upperArea) {
+          await supabase
+            .from('patients')
+            .update({
               phone: upperPhone || null,
               email: upperEmail || null,
               area: upperArea || null,
-            },
-          ]);
+            })
+            .eq('id', existingP[0].id);
         }
       }
 
@@ -275,6 +539,10 @@ export default function EmployeePortalPage() {
         setPurchaseStatusMsg(`ERROR: ${error.message}`);
       } else {
         setPurchaseStatusMsg(`SUCCESS: PURCHASE ENTRY RECORDED FOR ${payload.party_name}!`);
+        // Add to suggestions
+        if (!existingSuppliers.includes(payload.party_name)) {
+          setExistingSuppliers((prev) => [...prev, payload.party_name]);
+        }
         // Reset form
         setPurchaseParty('');
         setPurchaseItem('');
@@ -334,6 +602,10 @@ export default function EmployeePortalPage() {
         setSaleStatusMsg(`ERROR: ${error.message}`);
       } else {
         setSaleStatusMsg(`SUCCESS: SALE ENTRY RECORDED FOR ${payload.party_name}!`);
+        // Add to suggestions
+        if (!existingBuyers.includes(payload.party_name)) {
+          setExistingBuyers((prev) => [...prev, payload.party_name]);
+        }
         // Reset form
         setSaleParty('');
         setSaleItem('');
@@ -398,19 +670,28 @@ export default function EmployeePortalPage() {
           </div>
         </header>
 
-        {/* Info Banner */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-100 rounded-2xl flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl text-white shrink-0">
-            <Shield className="w-5 h-5" />
+        {/* Info Banner with Auto-Fetch indicator */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-xl text-white shrink-0">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-sm text-gray-900">
+                Staff Entry Mode: Courier, Purchase & Sale
+              </h2>
+              <p className="text-xs text-gray-500 font-bold normal-case">
+                Type any name to see suggestions and auto-fetch saved details from the database.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-black text-sm text-gray-900">
-              Staff Entry Mode: Courier, Purchase & Sale
-            </h2>
-            <p className="text-xs text-gray-500 font-bold normal-case">
-              Fill in the fields below and submit. Submissions are saved securely to Swasthyam database.
-            </p>
-          </div>
+
+          {autofillNotice && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-black animate-pulse">
+              <Zap className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{autofillNotice}</span>
+            </div>
+          )}
         </div>
 
         {/* Tab Switcher (Courier / Purchase / Sale) */}
@@ -465,7 +746,7 @@ export default function EmployeePortalPage() {
               <div>
                 <h3 className="text-xl font-black text-gray-900">Courier Shipment Entry</h3>
                 <p className="text-xs text-gray-400 font-bold normal-case">
-                  Log package dispatch, tracking number, and recipient details.
+                  Type patient name to auto-fetch phone, area, origin, and courier company.
                 </p>
               </div>
             </div>
@@ -504,17 +785,29 @@ export default function EmployeePortalPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-black text-gray-700 uppercase">
-                    Patient / Recipient Name <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="font-black text-gray-700 uppercase">
+                      Patient / Recipient Name <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-black">
+                      ⚡ AUTO-FETCH ON MATCH
+                    </span>
+                  </div>
                   <input
+                    list="employee-patient-list"
                     type="text"
                     required
-                    placeholder="ENTER FULL PATIENT NAME"
+                    placeholder="START TYPING PATIENT NAME..."
                     value={courierPatientName}
-                    onChange={(e) => setCourierPatientName(e.target.value.toUpperCase())}
+                    onChange={handlePatientNameChange}
+                    onBlur={() => autoFillPatient(courierPatientName)}
                     className="border border-gray-200 rounded-xl p-3 bg-white text-gray-900 focus:border-blue-500 outline-none uppercase text-sm font-bold"
                   />
+                  <datalist id="employee-patient-list">
+                    {existingPatients.map((p) => (
+                      <option key={p.id || p.name} value={p.name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -636,7 +929,7 @@ export default function EmployeePortalPage() {
               <div>
                 <h3 className="text-xl font-black text-gray-900">Purchase Entry Form</h3>
                 <p className="text-xs text-gray-400 font-bold normal-case">
-                  Log dental item purchases from suppliers matching Excel columns.
+                  Type supplier name to see suggestions and auto-fetch saved details.
                 </p>
               </div>
             </div>
@@ -675,17 +968,29 @@ export default function EmployeePortalPage() {
 
               {/* PARTY NAME */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-black text-gray-700 uppercase">
-                  PARTY NAME (SUPPLIER / VENDOR) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex justify-between items-center">
+                  <label className="font-black text-gray-700 uppercase">
+                    PARTY NAME (SUPPLIER / VENDOR) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-blue-600 font-black">
+                    ⚡ AUTO-SUGGESTIONS
+                  </span>
+                </div>
                 <input
+                  list="employee-supplier-list"
                   type="text"
                   required
-                  placeholder="ENTER SUPPLIER / VENDOR NAME"
+                  placeholder="START TYPING SUPPLIER / VENDOR NAME..."
                   value={purchaseParty}
-                  onChange={(e) => setPurchaseParty(e.target.value.toUpperCase())}
+                  onChange={handlePurchasePartyChange}
+                  onBlur={() => autoFillSupplier(purchaseParty)}
                   className="border border-gray-200 rounded-xl p-3 bg-white text-gray-900 focus:border-blue-500 outline-none uppercase text-sm font-bold"
                 />
+                <datalist id="employee-supplier-list">
+                  {existingSuppliers.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
               </div>
 
               {/* ITEMS */}
@@ -818,7 +1123,7 @@ export default function EmployeePortalPage() {
               <div>
                 <h3 className="text-xl font-black text-gray-900">Sale Entry Form</h3>
                 <p className="text-xs text-gray-400 font-bold normal-case">
-                  Log dental item sales to doctors/clinics matching Excel columns.
+                  Type doctor or clinic name to see suggestions and auto-fetch saved details.
                 </p>
               </div>
             </div>
@@ -857,17 +1162,29 @@ export default function EmployeePortalPage() {
 
               {/* PARTY NAME */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-black text-gray-700 uppercase">
-                  PARTY NAME (DOCTOR / CLINIC) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex justify-between items-center">
+                  <label className="font-black text-gray-700 uppercase">
+                    PARTY NAME (DOCTOR / CLINIC) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-purple-600 font-black">
+                    ⚡ AUTO-SUGGESTIONS
+                  </span>
+                </div>
                 <input
+                  list="employee-buyer-list"
                   type="text"
                   required
-                  placeholder="ENTER DOCTOR / CLINIC / HOSPITAL NAME"
+                  placeholder="START TYPING DOCTOR / CLINIC / HOSPITAL NAME..."
                   value={saleParty}
-                  onChange={(e) => setSaleParty(e.target.value.toUpperCase())}
+                  onChange={handleSalePartyChange}
+                  onBlur={() => autoFillBuyer(saleParty)}
                   className="border border-gray-200 rounded-xl p-3 bg-white text-gray-900 focus:border-purple-500 outline-none uppercase text-sm font-bold"
                 />
+                <datalist id="employee-buyer-list">
+                  {existingBuyers.map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
               </div>
 
               {/* ITEMS */}
@@ -993,4 +1310,3 @@ export default function EmployeePortalPage() {
     </main>
   );
 }
-

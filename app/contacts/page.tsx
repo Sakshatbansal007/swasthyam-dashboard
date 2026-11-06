@@ -78,40 +78,68 @@ export default function ContactsPage() {
     }, 4000);
   };
 
+  // Fetch all records from Supabase in 1,000-row chunks (bypassing PostgREST 1000 limit)
+  const fetchAllFromSupabase = async (): Promise<MasterContact[]> => {
+    const all: MasterContact[] = [];
+    const chunkSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('master_contacts')
+        .select('*')
+        .order('id', { ascending: true })
+        .range(from, from + chunkSize - 1);
+
+      if (error || !data || data.length === 0) break;
+      all.push(...(data as MasterContact[]));
+      if (data.length < chunkSize) break;
+      from += chunkSize;
+    }
+
+    return all;
+  };
+
   // Load Contacts (Fetch from bundled JSON first for instant render, then try Supabase)
   useEffect(() => {
     async function loadInitialData() {
       setLoading(true);
       try {
-        // Try fetching bundled JSON directly from public folder for instant 0ms startup
+        // 1. Fetch bundled JSON directly from public folder for instant 0ms startup
+        let baseContacts: MasterContact[] = [];
         const res = await fetch('/master_contacts.json');
         if (res.ok) {
-          const data: MasterContact[] = await res.json();
-          setContacts(data);
+          baseContacts = await res.json();
+          setContacts(baseContacts);
           setSource('bundled');
         }
 
-        // Now check if Supabase has live master_contacts data
+        // 2. Check if Supabase has live master_contacts data
         try {
-          const { data: dbData, error } = await supabase
+          const { error: probeError } = await supabase
             .from('master_contacts')
-            .select('*')
-            .order('id', { ascending: true })
-            .limit(10);
+            .select('id')
+            .limit(1);
 
-          if (!error) {
+          if (!probeError) {
             setHasSupabaseTable(true);
-            if (dbData && dbData.length > 0) {
-              // Live table exists with data! Fetch full records from Supabase
-              const { data: fullDbData, error: fullErr } = await supabase
-                .from('master_contacts')
-                .select('*')
-                .order('id', { ascending: true });
+            const dbContacts = await fetchAllFromSupabase();
 
-              if (!fullErr && fullDbData && fullDbData.length > 0) {
-                setContacts(fullDbData as MasterContact[]);
-                setSource('supabase');
+            if (dbContacts && dbContacts.length > 0) {
+              // Merge: Base contacts overridden by any edits in Supabase
+              const dbMap = new Map(dbContacts.map((c) => [c.id, c]));
+              const merged = baseContacts.length > 0
+                ? baseContacts.map((c) => dbMap.get(c.id) || c)
+                : dbContacts;
+
+              for (const dbC of dbContacts) {
+                if (dbC.id > 5599) {
+                  merged.push(dbC);
+                }
               }
+
+              setContacts(merged);
+              setSource('supabase');
             }
           } else {
             setHasSupabaseTable(false);
@@ -323,11 +351,22 @@ export default function ContactsPage() {
 
     try {
       const batchSize = 250;
-      const total = contacts.length;
+      let dataset = contacts;
+      if (dataset.length < 5599) {
+        try {
+          const res = await fetch('/master_contacts.json');
+          if (res.ok) {
+            const bundledData = await res.json();
+            const contactMap = new Map(contacts.map((c) => [c.id, c]));
+            dataset = bundledData.map((b: MasterContact) => contactMap.get(b.id) || b);
+          }
+        } catch {}
+      }
+      const total = dataset.length;
       let processed = 0;
 
       for (let i = 0; i < total; i += batchSize) {
-        const chunk = contacts.slice(i, i + batchSize);
+        const chunk = dataset.slice(i, i + batchSize);
         // Sanitize strings from null bytes and control chars
         const cleanChunk = chunk.map((c) => ({
           id: c.id,

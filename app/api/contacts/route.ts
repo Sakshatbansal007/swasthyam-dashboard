@@ -38,13 +38,34 @@ export async function GET(request: NextRequest) {
     let allContacts: MasterContact[] = [];
 
     try {
-      const { data, error } = await supabase
-        .from('master_contacts')
-        .select('*')
-        .order('id', { ascending: true });
+      const dbContacts: MasterContact[] = [];
+      const chunkSize = 1000;
+      let from = 0;
 
-      if (!error && data && data.length > 0) {
-        allContacts = data as MasterContact[];
+      while (true) {
+        const { data, error } = await supabase
+          .from('master_contacts')
+          .select('*')
+          .order('id', { ascending: true })
+          .range(from, from + chunkSize - 1);
+
+        if (error || !data || data.length === 0) break;
+        dbContacts.push(...(data as MasterContact[]));
+        if (data.length < chunkSize) break;
+        from += chunkSize;
+      }
+
+      if (dbContacts.length > 0) {
+        const bundled = await loadBundledContacts();
+        const dbMap = new Map(dbContacts.map((c) => [c.id, c]));
+        const merged = bundled.length > 0
+          ? bundled.map((c) => dbMap.get(c.id) || c)
+          : dbContacts;
+
+        for (const dbC of dbContacts) {
+          if (dbC.id > 5599) merged.push(dbC);
+        }
+        allContacts = merged;
         source = 'supabase';
       } else {
         allContacts = await loadBundledContacts();
